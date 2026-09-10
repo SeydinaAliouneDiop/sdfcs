@@ -43,6 +43,9 @@ AUTH_USER = os.getenv("AUTH_USER", "admin")
 AUTH_PASSWORD_HASH = os.getenv("AUTH_PASSWORD_HASH")  # hash bcrypt, jamais le mot de passe en clair
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 
+
+COOKIE_SAMESITE = "none" if COOKIE_SECURE else "lax"
+
 ALLOWED = os.getenv(
     "ALLOWED_ORIGINS",
     "http://127.0.0.1:5501,http://localhost:5501",
@@ -75,11 +78,7 @@ def verify_password(plain_password: str, hashed: str) -> bool:
 engine = create_engine(
     DB_URL,
     pool_pre_ping=True,
-    # Force les messages d'erreur du serveur PostgreSQL en anglais (ASCII).
-    # Sans ca, un PostgreSQL configure en francais (lc_messages) renvoie des
-    # messages accentues que psycopg2 peut echouer a decoder en UTF-8,
-    # provoquant un UnicodeDecodeError qui masque completement la vraie
-    # erreur (mauvais mot de passe, base inexistante, etc.).
+   
     connect_args={"options": "-c lc_messages=C"},
 )
 
@@ -223,7 +222,7 @@ async def login(body: LoginBody, request: Request):
         value=token,
         httponly=True,
         secure=COOKIE_SECURE,  # True obligatoire des que le site est servi en HTTPS
-        samesite="lax",
+        samesite=COOKIE_SAMESITE,  # "none" en prod (cross-site Render <-> Vercel), "lax" en local
         max_age=SESSION_DURATION,
     )
     return response
@@ -347,6 +346,26 @@ def get_parcelles(key: bool = Depends(verify_key)):
 # IMPORT SHAPEFILE
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _safe_extract(zip_path: str, dest_dir: str) -> None:
+    """Extrait un ZIP en verifiant que chaque entree reste bien a l'interieur
+    de dest_dir. Sans ca, une entree malveillante du type
+    "../../../etc/cron.d/backdoor" (ou un chemin absolu) pourrait ecrire
+    en dehors du dossier temporaire prevu (faille "zip slip")."""
+    dest_root = os.path.realpath(dest_dir)
+
+    with zipfile.ZipFile(zip_path, "r") as z:
+        for member in z.namelist():
+            target = os.path.realpath(os.path.join(dest_dir, member))
+
+            if not (target == dest_root or target.startswith(dest_root + os.sep)):
+                raise HTTPException(
+                    400,
+                    "Fichier ZIP invalide : contient un chemin non autorise",
+                )
+
+        z.extractall(dest_dir)
+
+
 @app.post("/import/shapefile")
 async def import_shapefile(file: UploadFile = File(...), key: bool = Depends(verify_key)):
     if not file.filename.endswith(".zip"):
@@ -362,8 +381,7 @@ async def import_shapefile(file: UploadFile = File(...), key: bool = Depends(ver
             f.write(await file.read())
 
         try:
-            with zipfile.ZipFile(zp, "r") as z:
-                z.extractall(tmp)
+            _safe_extract(zp, tmp)
         except zipfile.BadZipFile:
             raise HTTPException(400, "Fichier ZIP invalide ou corrompu")
 
