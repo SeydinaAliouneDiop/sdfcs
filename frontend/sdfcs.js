@@ -1,4 +1,4 @@
- var API = "/api";
+var API = "/api";
 var P = [], A = [];
 
 
@@ -343,17 +343,17 @@ function buildTable() {
       + "</div>";
 
     rows +=
-      "<div class='tc'>"
+      "<div class='tc' data-label='Zone'>"
       + esc(p.z)
       + "</div>";
 
     rows +=
-      "<div class='tc'>"
+      "<div class='tc' data-label='Alertes'>"
       + pad(p.na, 2)
       + "</div>";
 
     rows +=
-      "<div class='tc'>"
+      "<div class='tc' data-label='Score'>"
       + "<div class='sbw'>"
       + "<span>"
       + p.sm.toFixed(3)
@@ -371,7 +371,7 @@ function buildTable() {
       + "</div>";
 
     rows +=
-      "<div class='tc'>"
+      "<div class='tc' data-label='Statut'>"
       + "<span class='bdg "
       + cl
       + "'>"
@@ -2073,6 +2073,33 @@ function buildHistorique() {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MENU MOBILE (tiroir d'onglets)
+// ─────────────────────────────────────────────────────────────────────────────
+
+var menuToggle = document.getElementById("menu-toggle");
+var tabsEl = document.getElementById("tabs");
+var scrimEl = document.getElementById("tabs-scrim");
+var currentTabEl = document.getElementById("current-tab");
+
+function setMenu(open) {
+  tabsEl.classList.toggle("open", open);
+  scrimEl.classList.toggle("show", open);
+}
+
+if (menuToggle) {
+  menuToggle.addEventListener("click", function() {
+    setMenu(!tabsEl.classList.contains("open"));
+  });
+}
+
+if (scrimEl) {
+  scrimEl.addEventListener("click", function() {
+    setMenu(false);
+  });
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // NAVIGATION
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -2112,6 +2139,14 @@ function goSection(id) {
   if (id === "historique") {
     buildHistorique();
   }
+
+
+  if (currentTabEl) {
+    currentTabEl.textContent =
+      document.getElementById("tab-" + id).textContent;
+  }
+
+  setMenu(false);
 
 
   window.scrollTo(
