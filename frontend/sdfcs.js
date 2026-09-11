@@ -1,4 +1,4 @@
-var API = "https://sdfcs.onrender.com";
+ var API = "/api";
 var P = [], A = [];
 
 
