@@ -1,5 +1,5 @@
-
 import os
+import io
 import secrets
 import time
 import tempfile
@@ -9,13 +9,18 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 import bcrypt
 
 import geopandas as gpd
 import pandas as pd
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 from sqlalchemy import create_engine, text
 
@@ -175,27 +180,10 @@ def health():
 # AUTHENTIFICATION
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Les sessions sont maintenant stockees dans PostgreSQL.
-#
-# Cela evite le probleme des sessions stockees uniquement dans la RAM
-# de Render. Ainsi, meme si une autre instance/processus traite la requete,
-# la session reste disponible.
-
 SESSION_DURATION = 60 * 60 * 8  # 8 heures
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TABLE SESSION
-# ─────────────────────────────────────────────────────────────────────────────
-
 def ensure_sessions_table():
-    """
-    Cree la table sessions si elle n'existe pas.
-
-    Cela permet au backend de fonctionner directement apres le deploiement
-    sans necessiter obligatoirement une execution manuelle dans Supabase.
-    """
-
     try:
         with engine.begin() as c:
             c.execute(
@@ -226,18 +214,10 @@ def ensure_sessions_table():
         )
 
 
-# On essaye de creer la table au demarrage.
 ensure_sessions_table()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SESSION
-# ─────────────────────────────────────────────────────────────────────────────
-
 def create_session() -> str:
-    """
-    Cree un token de session et le stocke dans PostgreSQL.
-    """
 
     token = secrets.token_urlsafe(32)
 
@@ -264,11 +244,6 @@ def create_session() -> str:
 
 
 def verify_session(request: Request) -> bool:
-    """
-    Verifie que le cookie sdfcs_session existe,
-    que la session existe dans PostgreSQL et
-    qu'elle n'est pas expiree.
-    """
 
     token = request.cookies.get("sdfcs_session")
 
@@ -311,8 +286,6 @@ def verify_session(request: Request) -> bool:
 
     created_at = session[0]
 
-    # Securite supplementaire au cas ou PostgreSQL
-    # retourne un datetime sans timezone.
     if created_at.tzinfo is None:
         created_at = created_at.replace(
             tzinfo=timezone.utc
@@ -1434,6 +1407,186 @@ def run_detection(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# EXPORT CARTE (image statique GeoPandas + Matplotlib, legende + titre)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _couleur_score(score: float) -> str:
+
+    if score >= 0.8:
+        return "#A82820"
+
+    if score >= 0.5:
+        return "#9A7420"
+
+    return "#9A8868"
+
+
+@app.get("/export/carte")
+def export_carte(
+    key: bool = Depends(verify_key),
+):
+    """
+    Genere une image PNG de la carte des parcelles (coloree par score
+    de risque max) avec les limites des zones administratives, une
+    legende et un titre. Pensee pour etre jointe a un rapport ou
+    partagee telle quelle (contrairement au PDF d'alertes qui est un
+    tableau, celle-ci est une vraie carte).
+    """
+
+    try:
+
+        gdf = gpd.read_postgis(
+            """
+            SELECT
+                p.id_parcelle,
+                p.nicad,
+                p.geom,
+                CAST(
+                    COALESCE(MAX(a.score_risque), 0)
+                    AS FLOAT
+                ) AS score_max,
+                z.nom AS zone
+            FROM parcelle p
+            LEFT JOIN alerte a
+                ON a.id_parcelle = p.id_parcelle
+            JOIN zone_administrative z
+                ON p.id_zone_admin = z.id_zone
+            GROUP BY p.id_parcelle, p.nicad, p.geom, z.nom
+            """,
+            engine,
+            geom_col="geom",
+        ).to_crs(epsg=4326)
+
+        zones = gpd.read_postgis(
+            """
+            SELECT nom, statut_legal, geom
+            FROM zone_administrative
+            """,
+            engine,
+            geom_col="geom",
+        ).to_crs(epsg=4326)
+
+        if gdf.empty:
+
+            raise HTTPException(
+                400,
+                "Aucune parcelle a exporter",
+            )
+
+        fig, ax = plt.subplots(figsize=(11, 9))
+
+        zones.boundary.plot(
+            ax=ax,
+            color="#5A4E38",
+            linewidth=1,
+            linestyle="--",
+        )
+
+        gdf["couleur"] = gdf["score_max"].apply(
+            _couleur_score
+        )
+
+        gdf.plot(
+            ax=ax,
+            color=gdf["couleur"],
+            edgecolor="black",
+            linewidth=0.5,
+        )
+
+        for _, row in gdf.iterrows():
+
+            c = row.geometry.centroid
+
+            ax.annotate(
+                row["nicad"],
+                (c.x, c.y),
+                fontsize=6,
+                ha="center",
+                color="#1E1A12",
+            )
+
+        legende = [
+            Patch(
+                facecolor="#A82820",
+                edgecolor="black",
+                label="Critique (score >= 0.8)",
+            ),
+            Patch(
+                facecolor="#9A7420",
+                edgecolor="black",
+                label="Modere (score >= 0.5)",
+            ),
+            Patch(
+                facecolor="#9A8868",
+                edgecolor="black",
+                label="Faible / normal",
+            ),
+        ]
+
+        ax.legend(
+            handles=legende,
+            loc="lower left",
+            fontsize=8,
+            framealpha=0.9,
+        )
+
+        ax.set_title(
+            "SDFCS — Cartographie des parcelles et alertes\n"
+            "Dakar, Senegal",
+            fontsize=13,
+        )
+
+        ax.set_axis_off()
+
+        fig.text(
+            0.01,
+            0.01,
+            "SDFCS · CEDT / Le G15 · genere le "
+            + datetime.now().strftime("%d/%m/%Y %H:%M"),
+            fontsize=7,
+            color="#9A8868",
+        )
+
+        buf = io.BytesIO()
+
+        plt.savefig(
+            buf,
+            format="png",
+            dpi=200,
+            bbox_inches="tight",
+        )
+
+        plt.close(fig)
+
+        buf.seek(0)
+
+        return StreamingResponse(
+            buf,
+            media_type="image/png",
+            headers={
+                "Content-Disposition": (
+                    "attachment; filename=carte_sdfcs.png"
+                )
+            },
+        )
+
+    except HTTPException:
+
+        raise
+
+    except Exception as e:
+
+        logger.exception(
+            "Erreur pendant l'export carte"
+        )
+
+        raise HTTPException(
+            500,
+            "Erreur interne pendant l'export de la carte",
+        ) from e
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # START
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1446,4 +1599,3 @@ if __name__ == "__main__":
         host="127.0.0.1",
         port=8000,
     )
-

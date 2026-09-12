@@ -206,9 +206,9 @@ section.on{display:block;}
 .sbf{height:1px;}.sbf.r{background:var(--red);}.sbf.g{background:var(--gold2);}.sbf.n{background:var(--ink3);}
 
 /* ── CARTE ── */
-.ctopbar{display:flex;align-items:center;justify-content:space-between;padding:14px 64px;border-bottom:1px solid var(--line);}
+.ctopbar{display:flex;align-items:center;justify-content:space-between;padding:14px 64px;border-bottom:1px solid var(--line);gap:16px;flex-wrap:wrap;}
 .ccoord{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink2);letter-spacing:.1em;}
-.leg{display:flex;gap:24px;flex-wrap:wrap;}
+.leg{display:flex;gap:24px;flex-wrap:wrap;margin-left:auto;}
 .legitem{display:flex;align-items:center;gap:8px;}
 .legdot{width:8px;height:8px;border-radius:50%;}
 .legtxt{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--ink3);}
@@ -222,6 +222,7 @@ section.on{display:block;}
   padding:9px 22px;border:1px solid var(--ink);background:transparent;color:var(--ink);
   cursor:pointer;transition:all .18s;}
 .export-btn:hover{background:var(--ink);color:var(--sand);}
+.export-btn:disabled{opacity:.5;cursor:default;}
 .alhd{padding:48px 64px 36px;border-bottom:1px solid var(--line);
   display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:20px;}
 .aleyebrow{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--ink3);margin-bottom:12px;}
@@ -252,6 +253,8 @@ section.on{display:block;}
 .cbtn.ok:hover{background:var(--gold2);color:var(--sand);}
 .cbtn.ko{color:var(--red);}
 .cbtn.ko:hover{background:var(--red);color:var(--sand);}
+.cbtn.loc{color:var(--ink2);display:block;margin-top:6px;width:100%;text-align:center;}
+.cbtn.loc:hover{background:var(--ink2);color:var(--sand);}
 .tag-ok{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.1em;
   padding:4px 10px;border:1px solid var(--gold2);color:var(--gold2);}
 .tag-ko{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.1em;
@@ -377,7 +380,7 @@ section.on{display:block;}
   .trow .tc.b{font-size:15px;margin-bottom:4px;}
   .trow .tc.b::before{content:none;}
   .ctopbar{flex-direction:column;align-items:flex-start;gap:10px;padding:12px 16px;}
-  .leg{gap:12px;}
+  .leg{gap:12px;margin-left:0;}
   #mapframe{height:calc(100vh - 160px);}
   .alhd{padding:32px 20px 24px;flex-direction:column;align-items:flex-start;}
   .alist{padding:0 20px;}
@@ -551,6 +554,7 @@ section.on{display:block;}
       <div class="legitem"><div class="legdot" style="background:#9A8868"></div><div class="legtxt">FAIBLE</div></div>
       <div class="legitem"><div class="legdot" style="background:#D4C4A0"></div><div class="legtxt">NORMAL</div></div>
     </div>
+    <button class="export-btn" id="btn-export-carte">Exporter carte (image)</button>
   </div>
   <iframe id="mapframe" src="about:blank"></iframe>
 </section>

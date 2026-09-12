@@ -1,12 +1,15 @@
 var API = "/api";
 var P = [], A = [];
 
+// Nicad ciblé pour zoom+surbrillance sur la carte (mis par voirSurCarte)
+var focusNicad = null;
+
+// Ids des alertes créées lors du dernier import/detection (surbrillance carte)
+var nouvellesAlertesIds = [];
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ECHAPPEMENT HTML (anti-XSS)
-// Toute donnee provenant de la base (nicad, description, zone...) peut
-// contenir du texte importe via CSV/shapefile : on l'echappe systematiquement
-// avant de l'inserer dans du innerHTML.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function esc(str) {
@@ -92,7 +95,6 @@ document
 
         form.classList.remove("login-form-shake");
 
-        // relancer l'animation meme si l'erreur se repete
         void form.offsetWidth;
 
         form.classList.add("login-form-shake");
@@ -140,9 +142,6 @@ function request(url, options) {
 
       if (r.status === 401) {
 
-        // Session absente ou expiree en cours d'utilisation :
-        // on ramene l'utilisateur a l'ecran de connexion plutot
-        // que de rejouer un prompt().
         showLoginOverlay();
 
         throw new Error("Authentification requise");
@@ -185,6 +184,20 @@ function showMsg(id, txt, type) {
   el.textContent = txt;
 
   el.className = "msg " + type;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NAVIGATION VERS LA CARTE (clic sur une parcelle / alerte n'importe où)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function voirSurCarte(nicad) {
+
+  focusNicad = nicad;
+
+  goSection("carte");
+
+  buildCarte(true);
 }
 
 
@@ -280,13 +293,6 @@ function loadAll() {
     buildAlertes();
     buildSidebar();
 
-    // La carte utilise les memes donnees (P) mais vit dans un iframe
-    // separe qui n'est reconstruit qu'a la demande : si elle a deja
-    // ete construite au moins une fois, on la refait ici avec les
-    // valeurs fraiches (nouveaux scores/alertes apres un import ou
-    // une detection ML). Si l'utilisateur n'a encore jamais ouvert
-    // l'onglet Carte, on ne fait rien : buildCarte() la construira
-    // normalement au premier clic.
     if (mapBuilt) {
       buildCarte(true);
     }
@@ -335,7 +341,9 @@ function buildTable() {
     rows +=
       "<div class='trow sr' style='transition-delay:"
       + (i * 0.07)
-      + "s'>";
+      + "s' data-nicad='"
+      + esc(p.n)
+      + "'>";
 
     rows +=
       "<div class='tc b'>"
@@ -383,6 +391,19 @@ function buildTable() {
 
   document.getElementById("vtable").innerHTML =
     rows;
+
+  // Toute la ligne "Vue générale" est cliquable -> direct sur la carte
+  document
+    .querySelectorAll("#vtable .trow")
+    .forEach(function(el) {
+
+      el.style.cursor = "pointer";
+
+      el.addEventListener("click", function() {
+        voirSurCarte(this.getAttribute("data-nicad"));
+      });
+
+    });
 }
 
 
@@ -459,6 +480,12 @@ function buildAlertes() {
       confHtml += "</div>";
     }
 
+    // Bouton "Localiser" toujours présent, quel que soit le statut
+    confHtml +=
+      "<button class='cbtn loc' data-nicad='"
+      + esc(a.n)
+      + "'>Localiser</button>";
+
 
     rows +=
       "<div class='arow sr' "
@@ -517,7 +544,7 @@ function buildAlertes() {
     rows;
 
 
-  document.querySelectorAll(".cbtn")
+  document.querySelectorAll(".cbtn.ok, .cbtn.ko")
     .forEach(function(btn) {
 
       btn.addEventListener(
@@ -532,6 +559,23 @@ function buildAlertes() {
             this.getAttribute(
               "data-st"
             )
+          );
+
+        }
+      );
+
+    });
+
+
+  document.querySelectorAll(".cbtn.loc")
+    .forEach(function(btn) {
+
+      btn.addEventListener(
+        "click",
+        function() {
+
+          voirSurCarte(
+            this.getAttribute("data-nicad")
           );
 
         }
@@ -651,7 +695,7 @@ function setFilt(f, btn) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXPORT PDF
+// EXPORT PDF (registre des alertes)
 // ─────────────────────────────────────────────────────────────────────────────
 
 document
@@ -920,6 +964,62 @@ document
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// EXPORT CARTE (vraie carte image, légende + titre, via GeoPandas côté API)
+// ─────────────────────────────────────────────────────────────────────────────
+
+var btnExportCarte = document.getElementById("btn-export-carte");
+
+if (btnExportCarte) {
+
+  btnExportCarte.addEventListener("click", function() {
+
+    var btn = this;
+    var original = btn.textContent;
+
+    btn.textContent = "Génération...";
+    btn.disabled = true;
+
+    request("/export/carte")
+
+      .then(function(r) {
+        return r.blob();
+      })
+
+      .then(function(blob) {
+
+        var url = URL.createObjectURL(blob);
+
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "carte_sdfcs.png";
+
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        URL.revokeObjectURL(url);
+
+      })
+
+      .catch(function() {
+
+        alert("Erreur lors de l'export de la carte");
+
+      })
+
+      .finally(function() {
+
+        btn.textContent = original;
+        btn.disabled = false;
+
+      });
+
+  });
+
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PARCELLES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1078,9 +1178,19 @@ function showDetail(idx) {
 
 
   det +=
+    "<div style='display:flex;align-items:center;"
+    + "justify-content:space-between;flex-wrap:wrap;gap:12px'>";
+
+  det +=
     "<div class='pdnicad sr'>"
     + esc(p.n)
     + "</div>";
+
+  det +=
+    "<button class='ibtn' style='width:auto;padding:10px 20px' "
+    + "id='btn-loc-detail'>Localiser sur la carte</button>";
+
+  det += "</div>";
 
 
   det +=
@@ -1153,6 +1263,17 @@ function showDetail(idx) {
     det;
 
 
+  var btnLocDetail = document.getElementById("btn-loc-detail");
+
+  if (btnLocDetail) {
+
+    btnLocDetail.addEventListener("click", function() {
+      voirSurCarte(p.n);
+    });
+
+  }
+
+
   obs();
 }
 
@@ -1167,15 +1288,30 @@ var mapBlobUrl = null;
 
 function buildCarte(force) {
 
-  // "force" permet de reconstruire la carte alors qu'elle existe deja
-  // (ex: nouvelles donnees chargees via loadAll apres un import ou une
-  // detection ML). Sans "force", on ne construit qu'une seule fois.
   if (mapBuilt && !force) return;
 
   mapBuilt = true;
 
 
+  // Nicads concernés par les alertes toutes fraîches (import / detection ML)
+  var nicadsNouveaux = {};
+
+  for (var k = 0; k < nouvellesAlertesIds.length; k++) {
+
+    var id = nouvellesAlertesIds[k];
+
+    var alerte = A.filter(function(x) {
+      return x.id === id;
+    })[0];
+
+    if (alerte) {
+      nicadsNouveaux[alerte.n] = true;
+    }
+  }
+
+
   var mk = "";
+  var focusScript = "";
   var nbValides = 0;
   var nbInvalides = 0;
 
@@ -1183,11 +1319,6 @@ function buildCarte(force) {
 
     var p = P[i];
 
-    // On ne remplace plus les coordonnees manquantes/NaN par un centre
-    // par defaut : ca empilait toutes les parcelles sans geometrie au
-    // meme point (et masquait le vrai probleme, un import shapefile
-    // avec des coordonnees vides). On saute simplement ces parcelles
-    // et on compte combien sont concernees, affiche sur la carte.
     var latOk = isFinite(p.lat) && p.lat !== 0;
     var lonOk = isFinite(p.lon) && p.lon !== 0;
 
@@ -1204,10 +1335,13 @@ function buildCarte(force) {
     var col =
       scol(p.sm);
 
+    var estNouveau = !!nicadsNouveaux[p.n];
+    var estFocus = focusNicad && p.n === focusNicad;
+
     var r =
-      p.na > 0
-        ? 10
-        : 7;
+      estNouveau || estFocus
+        ? 13
+        : (p.na > 0 ? 10 : 7);
 
 
     var pop =
@@ -1233,11 +1367,40 @@ function buildCarte(force) {
       + JSON.stringify(col)
       + ",fillColor:"
       + JSON.stringify(col)
-      + ",fillOpacity:0.85,weight:1.5})"
+      + ",fillOpacity:0.85,weight:1.5"
+      + (estNouveau ? ",className:'sdfcs-pulse'" : "")
+      + "})"
       + ".addTo(map)"
       + ".bindPopup("
       + JSON.stringify(pop)
       + ");";
+
+
+    if (estFocus) {
+
+      focusScript =
+        "map.setView(["
+        + lat
+        + ","
+        + lon
+        + "],17);"
+        + "var hl=L.circleMarker(["
+        + lat
+        + ","
+        + lon
+        + "],{radius:20,color:'#A82820',weight:3,"
+        + "fillOpacity:0,className:'sdfcs-pulse'})"
+        + ".addTo(map);"
+        + "setTimeout(function(){"
+        + "L.popup().setLatLng(["
+        + lat
+        + ","
+        + lon
+        + "]).setContent("
+        + JSON.stringify(pop)
+        + ").openOn(map);"
+        + "},350);";
+    }
   }
 
 
@@ -1262,6 +1425,12 @@ function buildCarte(force) {
     + "background:#A82820;color:#fff;font:12px monospace;"
     + "padding:10px 14px;display:none;white-space:pre-wrap;"
     + "}"
+    // Surbrillance "nouvelle alerte" / "parcelle ciblée" : anneau pulsant
+    + ".sdfcs-pulse{animation:sdfcsPulse 1.1s ease-out infinite;}"
+    + "@keyframes sdfcsPulse{"
+    + "0%{stroke-opacity:1;filter:drop-shadow(0 0 4px currentColor);}"
+    + "100%{stroke-opacity:.15;}"
+    + "}"
     + "<\/style>"
     + "</head><body>",
 
@@ -1270,9 +1439,6 @@ function buildCarte(force) {
 
     "<script>",
 
-    // Filet de securite : si une seule ligne plus bas (init Leaflet,
-    // un marker, le tileLayer...) plante, on l'affiche en clair en haut
-    // de la carte au lieu de laisser une iframe silencieusement vide.
     "window.onerror=function(msg,src,line,col,err){"
     + "var e=document.getElementById(\"sdfcs-err\");"
     + "e.style.display=\"block\";"
@@ -1293,6 +1459,8 @@ function buildCarte(force) {
     + ").addTo(map);",
 
     mk,
+
+    focusScript,
 
     "map.on(\"mousemove\",function(e){"
     + "window.parent.postMessage({"
@@ -1322,9 +1490,6 @@ function buildCarte(force) {
     );
 
 
-  // On libere l'ancienne blob URL avant d'en creer une nouvelle : sinon
-  // chaque rebuild (import, detection ML, retour sur l'onglet) laisse
-  // une URL orpheline en memoire pour toute la duree de la session.
   if (mapBlobUrl) {
     URL.revokeObjectURL(mapBlobUrl);
   }
@@ -1335,6 +1500,13 @@ function buildCarte(force) {
     "mapframe"
   ).src =
     mapBlobUrl;
+
+
+  // Le focus et les surbrillances "nouvelles alertes" ne servent qu'une
+  // fois : on les consomme puis on les vide pour ne pas les rejouer au
+  // prochain rebuild automatique (ex: après un simple loadAll()).
+  focusNicad = null;
+  nouvellesAlertesIds = [];
 }
 
 
@@ -1463,6 +1635,50 @@ setupDrop(
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OUTIL COMMUN : capturer les ids d'alertes avant/après une action, pour
+// savoir lesquelles sont "nouvelles" et les mettre en évidence sur la carte.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function idsAlertesActuelles() {
+
+  return request("/alertes")
+    .then(function(r) {
+      return r.json();
+    })
+    .then(function(alertes) {
+      return alertes.map(function(a) {
+        return a.id_alerte;
+      });
+    });
+}
+
+
+function apresGenerationAlertes(idsAvant) {
+
+  return idsAlertesActuelles().then(function(idsApres) {
+
+    nouvellesAlertesIds = idsApres.filter(function(id) {
+      return idsAvant.indexOf(id) === -1;
+    });
+
+    loadAll();
+    buildHistorique();
+
+    if (nouvellesAlertesIds.length > 0) {
+
+      // Visibilité immédiate : on bascule direct sur la carte et les
+      // nouvelles alertes y apparaissent en surbrillance pulsante,
+      // sans que l'utilisateur ait besoin d'aller vérifier le tableau.
+      goSection("carte");
+      buildCarte(true);
+    }
+
+    return idsApres.length - idsAvant.length;
+  });
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SHAPEFILE
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1497,20 +1713,15 @@ document
       );
 
 
-      var alertesAvant = 0;
+      var idsAvant = [];
+      var nbImporteesGlobal = 0;
 
 
-      request("/stats")
+      idsAlertesActuelles()
 
-        .then(function(r) {
-          return r.json();
-        })
+        .then(function(ids) {
 
-        .then(function(s) {
-
-          alertesAvant =
-            s.total_alertes;
-
+          idsAvant = ids;
 
           var fd =
             new FormData();
@@ -1545,14 +1756,19 @@ document
             "ok"
           );
 
+          nbImporteesGlobal = data.inserees;
+
+          return apresGenerationAlertes(idsAvant);
+
+        })
+
+
+        .then(function(nouv) {
 
           showComparaison(
-            data.inserees,
-            alertesAvant
+            nbImporteesGlobal,
+            nouv
           );
-
-
-          loadAll();
 
         })
 
@@ -1612,6 +1828,8 @@ document
       );
 
 
+      var idsAvant = [];
+
       var fd =
         new FormData();
 
@@ -1622,40 +1840,51 @@ document
       );
 
 
-      request(
-        "/import/csv?type_donnee="
-        + type,
-        {
-          method: "POST",
-          body: fd
-        }
-      )
+      idsAlertesActuelles()
 
-      .then(function(r) {
-        return r.json();
-      })
+        .then(function(ids) {
 
-      .then(function(data) {
+          idsAvant = ids;
 
-        showMsg(
-          "msg-csv",
-          data.message,
-          "ok"
-        );
+          return request(
+            "/import/csv?type_donnee="
+            + type,
+            {
+              method: "POST",
+              body: fd
+            }
+          );
 
-        loadAll();
+        })
 
-      })
+        .then(function(r) {
+          return r.json();
+        })
 
-      .catch(function() {
+        .then(function(data) {
 
-        showMsg(
-          "msg-csv",
-          "Erreur lors de l import",
-          "err"
-        );
+          showMsg(
+            "msg-csv",
+            data.message,
+            "ok"
+          );
 
-      });
+          // Un import CSV de transactions peut déclencher le trigger
+          // "zone_illegale" côté PostGIS : on vérifie donc aussi les
+          // nouvelles alertes ici, pas seulement après la détection ML.
+          return apresGenerationAlertes(idsAvant);
+
+        })
+
+        .catch(function() {
+
+          showMsg(
+            "msg-csv",
+            "Erreur lors de l import",
+            "err"
+          );
+
+        });
 
     }
   );
@@ -1678,100 +1907,95 @@ document
       );
 
 
-      request(
-        "/detection/run",
-        {
-          method: "POST"
-        }
-      )
+      var idsAvant = [];
 
-      .then(function(r) {
-        return r.json();
-      })
 
-      .then(function(data) {
+      idsAlertesActuelles()
 
-        showMsg(
-          "msg-detect",
-          data.message,
-          "ok"
-        );
+        .then(function(ids) {
 
-        loadAll();
+          idsAvant = ids;
 
-        buildHistorique();
+          return request(
+            "/detection/run",
+            {
+              method: "POST"
+            }
+          );
 
-      })
+        })
 
-      .catch(function() {
+        .then(function(r) {
+          return r.json();
+        })
 
-        showMsg(
-          "msg-detect",
-          "Erreur detection",
-          "err"
-        );
+        .then(function(data) {
 
-      });
+          showMsg(
+            "msg-detect",
+            data.message,
+            "ok"
+          );
+
+          return apresGenerationAlertes(idsAvant);
+
+        })
+
+        .catch(function() {
+
+          showMsg(
+            "msg-detect",
+            "Erreur detection",
+            "err"
+          );
+
+        });
 
     }
   );
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPARAISON
+// COMPARAISON (bloc affiché après un import shapefile)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function showComparaison(
   nbImp,
-  alertesAvant
+  nouv
 ) {
 
-  request("/stats")
-
-    .then(function(r) {
-      return r.json();
-    })
-
-    .then(function(stats) {
-
-      var nouv =
-        stats.total_alertes
-        - alertesAvant;
+  var taux =
+    nbImp > 0
+      ? Math.round(
+          (nouv / nbImp) * 100
+        )
+      : 0;
 
 
-      var taux =
-        nbImp > 0
-          ? Math.round(
-              (nouv / nbImp) * 100
-            )
-          : 0;
+  document.getElementById(
+    "cmp-imp"
+  ).textContent =
+    nbImp;
 
 
-      document.getElementById(
-        "cmp-imp"
-      ).textContent =
-        nbImp;
+  document.getElementById(
+    "cmp-al"
+  ).textContent =
+    nouv > 0
+      ? "+" + nouv
+      : "0";
 
 
-      document.getElementById(
-        "cmp-al"
-      ).textContent =
-        nouv > 0
-          ? "+" + nouv
-          : "0";
+  document.getElementById(
+    "cmp-tx"
+  ).textContent =
+    taux + "%";
 
 
-      document.getElementById(
-        "cmp-tx"
-      ).textContent =
-        taux + "%";
+  document.getElementById(
+    "compare-block"
+  ).classList.add("show");
 
-
-      document.getElementById(
-        "compare-block"
-      ).classList.add("show");
-
-    });
 }
 
 
@@ -1946,6 +2170,11 @@ function buildHistorique() {
               "</div>";
           }
 
+          confHtml +=
+            "<button class='cbtn loc' data-nicad='"
+            + esc(a.nicad)
+            + "'>Localiser</button>";
+
 
           html +=
             "<div class='hist-item'>";
@@ -2041,7 +2270,7 @@ function buildHistorique() {
 
 
       document
-        .querySelectorAll(".cbtn")
+        .querySelectorAll(".hist-list .cbtn.ok, .hist-list .cbtn.ko")
         .forEach(function(btn) {
 
           btn.addEventListener(
@@ -2058,6 +2287,24 @@ function buildHistorique() {
                 this.getAttribute(
                   "data-st"
                 )
+              );
+
+            }
+          );
+
+        });
+
+
+      document
+        .querySelectorAll(".hist-list .cbtn.loc")
+        .forEach(function(btn) {
+
+          btn.addEventListener(
+            "click",
+            function() {
+
+              voirSurCarte(
+                this.getAttribute("data-nicad")
               );
 
             }
@@ -2319,10 +2566,6 @@ tick();
 // ─────────────────────────────────────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────────────────────────────────────
-// L'overlay de login est affiche par defaut (voir CSS). On ne charge les
-// donnees qu'apres une connexion reussie via le formulaire (voir plus haut).
-// Si une session valide existe deja (cookie non expire), la premiere requete
-// /stats passera directement et il suffit de masquer l'overlay.
 
 request("/stats")
 
