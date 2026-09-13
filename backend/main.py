@@ -24,6 +24,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 
 from sqlalchemy import create_engine, text
 
@@ -1460,16 +1461,48 @@ def _couleur_score(score: float) -> str:
     return "#9A8868"
 
 
+def _echelle_ronde(valeur_m: float) -> float:
+    """
+    Arrondit une distance (en metres) vers le multiple 1/2/5.10^n le
+    plus proche, pour obtenir une barre d'echelle avec un chiffre
+    rond (ex: 500 m, 1 km, 2 km) plutot qu'une valeur arbitraire.
+    """
+
+    import math
+
+    if valeur_m <= 0:
+        return 100.0
+
+    exposant = math.floor(math.log10(valeur_m))
+    base = valeur_m / (10 ** exposant)
+
+    if base < 1.5:
+        nice = 1
+    elif base < 3.5:
+        nice = 2
+    elif base < 7.5:
+        nice = 5
+    else:
+        nice = 10
+
+    return nice * (10 ** exposant)
+
+
 @app.get("/export/carte")
 def export_carte(
     key: bool = Depends(verify_key),
 ):
     """
-    Genere une image PNG de la carte des parcelles (coloree par score
-    de risque max) avec les limites des zones administratives, une
-    legende et un titre. Pensee pour etre jointe a un rapport ou
-    partagee telle quelle (contrairement au PDF d'alertes qui est un
-    tableau, celle-ci est une vraie carte).
+    Genere une image PNG de la carte des parcelles avec les elements
+    cartographiques standards : cartouche titre, legende encadree,
+    fleche du nord, barre d'echelle, cadre net (neatline), et un
+    etiquetage limite aux parcelles a risque pour rester lisible.
+
+    Reste volontairement en UTM 28N (SRID natif de la base, EPSG:32628)
+    plutot que de reprojeter en WGS84 : c'est la projection correcte
+    pour une carte locale de ce type (pas de distorsion des surfaces
+    et des distances), et ca rend la barre d'echelle triviale a
+    calculer puisque les unites sont deja des metres.
     """
 
     try:
@@ -1494,7 +1527,7 @@ def export_carte(
             """,
             engine,
             geom_col="geom",
-        ).to_crs(epsg=4326)
+        )
 
         zones = gpd.read_postgis(
             """
@@ -1503,7 +1536,7 @@ def export_carte(
             """,
             engine,
             geom_col="geom",
-        ).to_crs(epsg=4326)
+        )
 
         if gdf.empty:
 
@@ -1524,14 +1557,45 @@ def export_carte(
                 "Aucune parcelle avec une geometrie valide",
             )
 
-        fig, ax = plt.subplots(figsize=(11, 9))
+        plt.rcParams["font.family"] = "monospace"
+
+        fig, ax = plt.subplots(figsize=(12, 10))
+
+        fig.patch.set_facecolor("#F0E8D8")
+        ax.set_facecolor("#E4D8BC")
+
+        minx, miny, maxx, maxy = gdf.total_bounds
+
+        pad_x = max((maxx - minx) * 0.18, 50)
+        pad_y = max((maxy - miny) * 0.18, 50)
+
+        ax.set_xlim(minx - pad_x, maxx + pad_x)
+
+        # Marge du haut plus large : c'est la que vit le cartouche titre
+        ax.set_ylim(miny - pad_y, maxy + pad_y * 1.6)
 
         zones.boundary.plot(
             ax=ax,
             color="#5A4E38",
-            linewidth=1,
+            linewidth=1.3,
             linestyle="--",
+            zorder=2,
         )
+
+        for _, z in zones.iterrows():
+
+            zc = z["geom"].centroid
+
+            ax.annotate(
+                str(z["nom"]).upper(),
+                (zc.x, zc.y),
+                fontsize=8,
+                fontweight="bold",
+                ha="center",
+                color="#5A4E38",
+                alpha=0.75,
+                zorder=2,
+            )
 
         gdf["couleur"] = gdf["score_max"].apply(
             _couleur_score
@@ -1540,62 +1604,156 @@ def export_carte(
         gdf.plot(
             ax=ax,
             color=gdf["couleur"],
-            edgecolor="black",
-            linewidth=0.5,
+            edgecolor="#1E1A12",
+            linewidth=0.6,
+            zorder=3,
         )
 
-        for _, row in gdf.iterrows():
+        # Etiquettes uniquement pour les parcelles a risque : au-dela
+        # d'une poignee de parcelles normales etiquetees, une carte
+        # devient illisible sans rien apporter de plus a la lecture.
+        a_etiqueter = gdf[gdf["score_max"] >= 0.5]
+
+        for _, row in a_etiqueter.iterrows():
 
             c = row["geom"].centroid
 
             ax.annotate(
                 row["nicad"],
                 (c.x, c.y),
-                fontsize=6,
+                xytext=(0, 9),
+                textcoords="offset points",
+                fontsize=7,
+                fontweight="bold",
                 ha="center",
                 color="#1E1A12",
+                zorder=4,
             )
 
+        # ── Cadre net (neatline) ──
+        for spine in ax.spines.values():
+            spine.set_edgecolor("#1E1A12")
+            spine.set_linewidth(1.4)
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        # ── Legende encadree ──
         legende = [
             Patch(
                 facecolor="#A82820",
-                edgecolor="black",
+                edgecolor="#1E1A12",
                 label="Critique (score >= 0.8)",
             ),
             Patch(
                 facecolor="#9A7420",
-                edgecolor="black",
+                edgecolor="#1E1A12",
                 label="Modere (score >= 0.5)",
             ),
             Patch(
                 facecolor="#9A8868",
-                edgecolor="black",
+                edgecolor="#1E1A12",
                 label="Faible / normal",
+            ),
+            Line2D(
+                [0], [0],
+                color="#5A4E38",
+                lw=1.3,
+                linestyle="--",
+                label="Limite de zone administrative",
             ),
         ]
 
-        ax.legend(
+        leg = ax.legend(
             handles=legende,
             loc="lower left",
             fontsize=8,
-            framealpha=0.9,
+            framealpha=0.95,
+            facecolor="#F0E8D8",
+            edgecolor="#1E1A12",
+            title="LEGENDE",
+            title_fontsize=8,
         )
 
+        leg.get_title().set_fontweight("bold")
+
+        # ── Fleche du nord ──
+        ax.annotate(
+            "N",
+            xy=(0.955, 0.90),
+            xytext=(0.955, 0.78),
+            xycoords="axes fraction",
+            fontsize=14,
+            fontweight="bold",
+            ha="center",
+            color="#1E1A12",
+            arrowprops=dict(
+                arrowstyle="-|>",
+                color="#1E1A12",
+                lw=2.2,
+            ),
+        )
+
+        # ── Barre d'echelle (en metres : UTM 28N, pas de distorsion) ──
+        long_barre = _echelle_ronde((maxx - minx) * 0.22)
+
+        sx0 = minx + (maxx - minx) * 0.04
+        sy0 = miny - pad_y * 0.55
+
+        ax.plot(
+            [sx0, sx0 + long_barre], [sy0, sy0],
+            color="#1E1A12", lw=3, solid_capstyle="butt", zorder=5,
+        )
+
+        for x_tick in (sx0, sx0 + long_barre):
+
+            ax.plot(
+                [x_tick, x_tick],
+                [sy0 - pad_y * 0.04, sy0 + pad_y * 0.04],
+                color="#1E1A12", lw=3, zorder=5,
+            )
+
+        label_echelle = (
+            f"{int(long_barre)} m"
+            if long_barre < 1000
+            else f"{long_barre / 1000:.1f} km"
+        )
+
+        ax.annotate(
+            label_echelle,
+            (sx0 + long_barre / 2, sy0),
+            xytext=(0, -14),
+            textcoords="offset points",
+            ha="center",
+            fontsize=8,
+            fontweight="bold",
+            color="#1E1A12",
+        )
+
+        # ── Cartouche titre ──
         ax.set_title(
-            "SDFCS — Cartographie des parcelles et alertes\n"
-            "Dakar, Senegal",
+            "SDFCS — CARTOGRAPHIE DES PARCELLES ET ALERTES\n"
+            "Dakar, Senegal · Projection UTM Zone 28N (EPSG:32628)",
             fontsize=13,
+            fontweight="bold",
+            color="#1E1A12",
+            pad=14,
         )
-
-        ax.set_axis_off()
 
         fig.text(
-            0.01,
-            0.01,
+            0.01, 0.01,
             "SDFCS · CEDT / Le G15 · genere le "
             + datetime.now().strftime("%d/%m/%Y %H:%M"),
-            fontsize=7,
-            color="#9A8868",
+            fontsize=7.5,
+            color="#5A4E38",
+        )
+
+        fig.text(
+            0.99, 0.01,
+            f"{len(gdf)} parcelle(s) — {len(a_etiqueter)} a risque (score >= 0.5)",
+            fontsize=7.5,
+            color="#5A4E38",
+            ha="right",
         )
 
         buf = io.BytesIO()
@@ -1603,8 +1761,9 @@ def export_carte(
         plt.savefig(
             buf,
             format="png",
-            dpi=200,
+            dpi=220,
             bbox_inches="tight",
+            facecolor=fig.get_facecolor(),
         )
 
         plt.close(fig)
@@ -1631,9 +1790,6 @@ def export_carte(
             "Erreur pendant l'export carte"
         )
 
-        # Message d'erreur reel expose au front (via err.detail, deja
-        # gere par le handler JS) : utile pour debugger sans devoir
-        # aller chercher dans les logs Render a chaque fois.
         raise HTTPException(
             500,
             f"Erreur export carte : {type(e).__name__}: {e}",
