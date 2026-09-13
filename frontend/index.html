@@ -401,6 +401,26 @@ section.on{display:block;}
   .hist-item{grid-template-columns:1fr;gap:8px;}
   .hist-heure{display:none;}
   .al-topbar{padding:12px 20px;flex-direction:column;align-items:flex-start;gap:10px;}
+
+  /* ── LISIBILITE MOBILE ──
+     --ink3 sur --sand a un contraste trop faible pour du texte en
+     8-9px : illisible sur petit ecran. On fonce la couleur et on
+     remonte les tailles les plus critiques uniquement sur mobile,
+     desktop reste inchange. */
+  :root{ --ink3:#6E5F44; }
+
+  .abadge, .bdg, .legtxt, .klbl, .pdkey, .cmp-key,
+  .aleyebrow, .eyebrow, .stitle, .hist-day-label, .astatut,
+  .import-block-sub, .drop-main, .drop-sub, .biglbl, .knote,
+  .login-eyebrow, .import-eyebrow, .hist-eyebrow{
+    font-size:11px;
+  }
+
+  .cbtn{ font-size:10px; padding:7px 12px; }
+  .adesc, .detect-desc{ font-size:12px; line-height:1.6; }
+  .anicad{ font-size:15px; }
+  .ascore{ font-size:24px; }
+  .ccoord{ font-size:11px; }
 }
 @media(max-width:480px){
   .kpis{grid-template-columns:1fr;}

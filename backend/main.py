@@ -1,4 +1,7 @@
 import os
+
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib-cache")
+
 import io
 import secrets
 import time
@@ -57,6 +60,27 @@ ALLOWED = os.getenv(
     "ALLOWED_ORIGINS",
     "http://127.0.0.1:5501,http://localhost:5501",
 ).split(",")
+
+
+def verify_origin(request: Request) -> bool:
+    """
+    Verification supplementaire contre le CSRF : le cookie de session
+    est en SameSite=None en production (front et API sur des domaines
+    differents), ce qui desactive la protection SameSite habituelle.
+    On verifie donc explicitement l'en-tete Origin sur les routes qui
+    modifient des donnees.
+    """
+
+    origin = request.headers.get("origin")
+
+    if origin and origin not in ALLOWED:
+
+        raise HTTPException(
+            403,
+            "Origine non autorisee",
+        )
+
+    return True
 
 
 if not DB_URL:
@@ -394,6 +418,7 @@ class StatutBody(BaseModel):
 async def login(
     body: LoginBody,
     request: Request,
+    _o: bool = Depends(verify_origin),
 ):
 
     ip = (
@@ -451,7 +476,10 @@ async def login(
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.post("/auth/logout")
-def logout(request: Request):
+def logout(
+    request: Request,
+    _o: bool = Depends(verify_origin),
+):
 
     token = request.cookies.get(
         "sdfcs_session"
@@ -624,6 +652,7 @@ def patch_statut(
     id_alerte: int,
     body: StatutBody,
     key: bool = Depends(verify_key),
+    _o: bool = Depends(verify_origin),
 ):
 
     statuts_valides = {
@@ -824,6 +853,7 @@ def _safe_extract(
 async def import_shapefile(
     file: UploadFile = File(...),
     key: bool = Depends(verify_key),
+    _o: bool = Depends(verify_origin),
 ):
 
     if not file.filename.endswith(".zip"):
@@ -1011,6 +1041,7 @@ async def import_csv(
     file: UploadFile = File(...),
     type_donnee: str = "transaction",
     key: bool = Depends(verify_key),
+    _o: bool = Depends(verify_origin),
 ):
 
     if not file.filename.endswith(".csv"):
@@ -1028,6 +1059,13 @@ async def import_csv(
         )
 
     content = await file.read()
+
+    if len(content) > 20 * 1024 * 1024:
+
+        raise HTTPException(
+            413,
+            "Fichier trop volumineux (max 20 Mo)",
+        )
 
     with tempfile.NamedTemporaryFile(
         suffix=".csv",
@@ -1237,6 +1275,7 @@ async def import_csv(
 @app.post("/detection/run")
 def run_detection(
     key: bool = Depends(verify_key),
+    _o: bool = Depends(verify_origin),
 ):
 
     try:

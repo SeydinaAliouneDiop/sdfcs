@@ -982,6 +982,22 @@ if (btnExportCarte) {
     request("/export/carte")
 
       .then(function(r) {
+
+        // Si l'API renvoie une erreur, la reponse est du JSON, pas une
+        // image : on doit le detecter ici, sinon on telecharge un
+        // fichier .png qui contient en realite un message d'erreur
+        // texte (d'ou l'impression de "fichier corrompu").
+        if (!r.ok) {
+
+          return r.json()
+            .catch(function() {
+              return { detail: "Erreur inconnue" };
+            })
+            .then(function(err) {
+              throw new Error(err.detail || "Erreur export");
+            });
+        }
+
         return r.blob();
       })
 
@@ -1001,9 +1017,12 @@ if (btnExportCarte) {
 
       })
 
-      .catch(function() {
+      .catch(function(e) {
 
-        alert("Erreur lors de l'export de la carte");
+        alert(
+          "Erreur export carte : "
+          + (e && e.message ? e.message : "inconnue")
+        );
 
       })
 
@@ -1315,6 +1334,10 @@ function buildCarte(force) {
   var nbValides = 0;
   var nbInvalides = 0;
 
+  // Coordonnees des parcelles concernees par les alertes toutes fraiches :
+  // sert a zoomer automatiquement dessus et a compter le bandeau d'alerte.
+  var coordsNouvelles = [];
+
   for (var i = 0; i < P.length; i++) {
 
     var p = P[i];
@@ -1367,13 +1390,30 @@ function buildCarte(force) {
       + JSON.stringify(col)
       + ",fillColor:"
       + JSON.stringify(col)
-      + ",fillOpacity:0.85,weight:1.5"
-      + (estNouveau ? ",className:'sdfcs-pulse'" : "")
-      + "})"
+      + ",fillOpacity:0.85,weight:1.5})"
       + ".addTo(map)"
       + ".bindPopup("
       + JSON.stringify(pop)
       + ");";
+
+
+    if (estNouveau) {
+
+      coordsNouvelles.push([lat, lon]);
+
+      // Halo cyan (couleur absente du reste de la palette) qui grossit
+      // et retrecit en continu autour de la parcelle : c'est le repere
+      // visuel "nouvelle alerte", impossible a confondre avec le reste.
+      mk +=
+        "var halo=L.circleMarker(["
+        + lat
+        + ","
+        + lon
+        + "],{radius:14,color:'#00C2FF',weight:3,"
+        + "fillOpacity:0.15,fillColor:'#00C2FF'})"
+        + ".addTo(map);"
+        + "pulseHalos.push(halo);";
+    }
 
 
     if (estFocus) {
@@ -1458,9 +1498,50 @@ function buildCarte(force) {
     + "maxZoom:19}"
     + ").addTo(map);",
 
+    "var pulseHalos=[];",
+
     mk,
 
     focusScript,
+
+    // Si un import/detection vient de creer des alertes : zoom
+    // automatique dessus (sinon elles peuvent tomber hors du cadre
+    // par defaut centre sur Dakar) + bandeau fixe impossible a rater.
+    (coordsNouvelles.length > 0
+      ? "map.fitBounds("
+        + JSON.stringify(coordsNouvelles)
+        + ",{padding:[60,60],maxZoom:16});"
+      : ""),
+
+    (coordsNouvelles.length > 0
+      ? "var b=document.createElement('div');"
+        + "b.style.cssText="
+        + JSON.stringify(
+            "position:absolute;top:12px;left:50%;"
+            + "transform:translateX(-50%);"
+            + "background:#00C2FF;color:#0A1A1F;"
+            + "font:bold 13px monospace;padding:10px 20px;"
+            + "border-radius:4px;z-index:9999;"
+            + "box-shadow:0 2px 8px rgba(0,0,0,.35);"
+          )
+        + ";"
+        + "b.textContent="
+        + JSON.stringify(
+            "\uD83C\uDD95 "
+            + coordsNouvelles.length
+            + " nouvelle(s) alerte(s) detectee(s)"
+          )
+        + ";"
+        + "document.body.appendChild(b);"
+      : ""),
+
+    // Pulsation animee du halo (via JS plutot que CSS pur : plus fiable
+    // sur les circleMarker SVG de Leaflet selon les navigateurs).
+    "setInterval(function(){"
+    + "var t=Date.now()/300;"
+    + "var r=14+6*Math.abs(Math.sin(t));"
+    + "pulseHalos.forEach(function(h){h.setRadius(r);});"
+    + "},50);",
 
     "map.on(\"mousemove\",function(e){"
     + "window.parent.postMessage({"
