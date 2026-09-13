@@ -899,24 +899,24 @@ async def import_shapefile(
                 "Fichier ZIP invalide ou corrompu",
             )
 
-        shps = [
-            f
-            for f in os.listdir(tmp)
-            if f.endswith(".shp")
-        ]
+        shps = []
+
+        for root, dirs, files in os.walk(tmp):
+            for f in files:
+                if f.endswith(".shp"):
+                    shps.append(os.path.join(root, f))
 
         if not shps:
 
             raise HTTPException(
                 400,
-                "Aucun .shp trouve dans le ZIP",
+                "Aucun .shp trouve dans le ZIP "
+                "(verifie qu'il contient bien .shp/.dbf/.prj, "
+                "meme dans un sous-dossier)",
             )
 
         gdf = gpd.read_file(
-            os.path.join(
-                tmp,
-                shps[0],
-            )
+            shps[0]
         )
 
         if gdf.crs is None:
@@ -1512,6 +1512,18 @@ def export_carte(
                 "Aucune parcelle a exporter",
             )
 
+        gdf = gdf[
+            gdf.geometry.notna()
+            & gdf.geometry.is_valid
+        ]
+
+        if gdf.empty:
+
+            raise HTTPException(
+                400,
+                "Aucune parcelle avec une geometrie valide",
+            )
+
         fig, ax = plt.subplots(figsize=(11, 9))
 
         zones.boundary.plot(
@@ -1534,7 +1546,7 @@ def export_carte(
 
         for _, row in gdf.iterrows():
 
-            c = row.geometry.centroid
+            c = row["geom"].centroid
 
             ax.annotate(
                 row["nicad"],
@@ -1619,9 +1631,12 @@ def export_carte(
             "Erreur pendant l'export carte"
         )
 
+        # Message d'erreur reel expose au front (via err.detail, deja
+        # gere par le handler JS) : utile pour debugger sans devoir
+        # aller chercher dans les logs Render a chaque fois.
         raise HTTPException(
             500,
-            "Erreur interne pendant l'export de la carte",
+            f"Erreur export carte : {type(e).__name__}: {e}",
         ) from e
 
 
