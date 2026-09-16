@@ -2083,6 +2083,17 @@ function showComparaison(
 // ─────────────────────────────────────────────────────────────────────────────
 // HISTORIQUE
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// FIX (2026-09-16) : la classe de révélation au scroll "sr" était posée
+// sur le conteneur *du jour entier* (.hist-day). Avec un gros import
+// (des centaines/milliers d'alertes sur la même date), ce conteneur
+// devient énorme (dizaines de milliers de px de haut), et ne franchit
+// jamais le seuil de 10% de visibilité exigé par l'IntersectionObserver
+// -> il reste invisible pour toujours, alors que son contenu (boutons,
+// texte) existe bien dans le DOM et reste cliquable. La classe "sr" est
+// maintenant posée sur chaque ligne (.hist-item) individuellement, qui
+// elle a une hauteur normale et franchit facilement ce seuil.
+// ─────────────────────────────────────────────────────────────────────────────
 
 function buildHistorique() {
 
@@ -2138,6 +2149,10 @@ function buildHistorique() {
 
       var html = "";
 
+      // Compteur global de lignes, pour capper le délai d'animation
+      // même quand il y a des milliers d'alertes au total.
+      var itemIndex = 0;
+
 
       for (
         var d = 0;
@@ -2152,11 +2167,10 @@ function buildHistorique() {
           byDate[date];
 
 
+        // Le conteneur du jour n'a plus la classe "sr" : il n'a plus
+        // besoin d'être animé lui-même, seules ses lignes le sont.
         html +=
-          "<div class='hist-day sr' "
-          + "style='transition-delay:"
-          + (d * 0.07)
-          + "s'>";
+          "<div class='hist-day'>";
 
 
         html +=
@@ -2257,8 +2271,15 @@ function buildHistorique() {
             + "'>Localiser</button>";
 
 
+          // "sr" déplacé ici (par ligne) + délai capé à 20 pas pour ne
+          // jamais générer un délai de plusieurs dizaines de secondes
+          // sur un gros import.
           html +=
-            "<div class='hist-item'>";
+            "<div class='hist-item sr' style='transition-delay:"
+            + (Math.min(itemIndex, 20) * 0.03)
+            + "s'>";
+
+          itemIndex++;
 
 
           html +=
@@ -2550,6 +2571,12 @@ document
 // ─────────────────────────────────────────────────────────────────────────────
 // SCROLL OBSERVER
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// Seuil abaissé de 0.1 à 0.01 (filet de sécurité) : même si un futur
+// bloc redevient anormalement grand, il suffira qu'un tout petit bout
+// soit visible pour déclencher la révélation, au lieu d'exiger 10% de
+// sa hauteur totale.
+// ─────────────────────────────────────────────────────────────────────────────
 
 var io =
   new IntersectionObserver(
@@ -2579,7 +2606,7 @@ var io =
 
     },
     {
-      threshold: 0.1
+      threshold: 0.01
     }
   );
 
