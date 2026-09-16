@@ -163,10 +163,10 @@ function sc(s) {
 
 function scol(s) {
   return s >= 0.8
-    ? "#A82820"
+    ? "#FF5C6C"
     : s >= 0.5
-      ? "#9A7420"
-      : "#9A8868";
+      ? "#FFB238"
+      : "#9B9AA5";
 }
 
 
@@ -744,7 +744,7 @@ document
 
 
         rows +=
-          "<tr style='border-bottom:1px solid #D4C4A0'>";
+          "<tr style='border-bottom:1px solid #E5E7EB'>";
 
         rows +=
           "<td style='padding:9px 12px;"
@@ -768,7 +768,7 @@ document
         rows +=
           "<td style='padding:9px 12px;"
           + "font-size:11px;"
-          + "color:#5A4E38'>"
+          + "color:#4B4A52'>"
           + esc(a.d)
           + "</td>";
 
@@ -807,7 +807,7 @@ document
       doc +=
         "<style>"
         + "body{font-family:Georgia,serif;"
-        + "padding:48px;color:#1E1A12;}"
+        + "padding:48px;color:#17161B;}"
         + "h1{font-family:monospace;"
         + "font-size:20px;"
         + "font-weight:400;"
@@ -816,37 +816,37 @@ document
         + ".sub{font-family:monospace;"
         + "font-size:9px;"
         + "letter-spacing:.16em;"
-        + "color:#9A8868;"
+        + "color:#6B7280;"
         + "margin-bottom:28px;}"
         + ".meta{display:flex;"
         + "gap:40px;"
         + "margin-bottom:28px;"
         + "padding-bottom:18px;"
-        + "border-bottom:1px solid #D4C4A0;}"
+        + "border-bottom:1px solid #E5E7EB;}"
         + ".mk{font-family:monospace;"
         + "font-size:9px;"
         + "letter-spacing:.14em;"
-        + "color:#9A8868;"
+        + "color:#6B7280;"
         + "margin-bottom:4px;}"
         + ".mv{font-family:monospace;"
         + "font-size:18px;"
         + "font-weight:300;}"
-        + ".mv.r{color:#A82820;}"
+        + ".mv.r{color:#C6303E;}"
         + "table{width:100%;"
         + "border-collapse:collapse;}"
         + "th{font-family:monospace;"
         + "font-size:9px;"
         + "letter-spacing:.12em;"
-        + "color:#9A8868;"
+        + "color:#6B7280;"
         + "text-align:left;"
         + "padding:9px 12px;"
-        + "border-bottom:2px solid #D4C4A0;}"
+        + "border-bottom:2px solid #E5E7EB;}"
         + ".ft{margin-top:40px;"
         + "padding-top:16px;"
-        + "border-top:1px solid #D4C4A0;"
+        + "border-top:1px solid #E5E7EB;"
         + "font-family:monospace;"
         + "font-size:9px;"
-        + "color:#9A8868;"
+        + "color:#6B7280;"
         + "letter-spacing:.1em;}"
         + "@media print{body{padding:24px;}}"
         + "</style>"
@@ -1162,7 +1162,7 @@ function showDetail(idx) {
     alh +=
       "<div style='flex:1;"
       + "font-size:11px;"
-      + "color:#5A4E38;"
+      + "color:#9B9AA5;"
       + "line-height:1.5'>"
       + esc(a.d)
       + "</div>";
@@ -1428,7 +1428,7 @@ function buildCarte(force) {
         + lat
         + ","
         + lon
-        + "],{radius:20,color:'#A82820',weight:3,"
+        + "],{radius:20,color:'#FF5C6C',weight:3,"
         + "fillOpacity:0,className:'sdfcs-pulse'})"
         + ".addTo(map);"
         + "setTimeout(function(){"
@@ -1459,10 +1459,11 @@ function buildCarte(force) {
     + "html,body,#map{"
     + "margin:0;padding:0;"
     + "width:100%;height:100vh;"
+    + "background:#0B0B0E;"
     + "}"
     + "#sdfcs-err{"
     + "position:absolute;top:0;left:0;right:0;z-index:99999;"
-    + "background:#A82820;color:#fff;font:12px monospace;"
+    + "background:#FF5C6C;color:#0B0B0E;font:12px monospace;"
     + "padding:10px 14px;display:none;white-space:pre-wrap;"
     + "}"
     // Surbrillance "nouvelle alerte" / "parcelle ciblée" : anneau pulsant
@@ -2083,17 +2084,6 @@ function showComparaison(
 // ─────────────────────────────────────────────────────────────────────────────
 // HISTORIQUE
 // ─────────────────────────────────────────────────────────────────────────────
-//
-// FIX (2026-09-16) : la classe de révélation au scroll "sr" était posée
-// sur le conteneur *du jour entier* (.hist-day). Avec un gros import
-// (des centaines/milliers d'alertes sur la même date), ce conteneur
-// devient énorme (dizaines de milliers de px de haut), et ne franchit
-// jamais le seuil de 10% de visibilité exigé par l'IntersectionObserver
-// -> il reste invisible pour toujours, alors que son contenu (boutons,
-// texte) existe bien dans le DOM et reste cliquable. La classe "sr" est
-// maintenant posée sur chaque ligne (.hist-item) individuellement, qui
-// elle a une hauteur normale et franchit facilement ce seuil.
-// ─────────────────────────────────────────────────────────────────────────────
 
 function buildHistorique() {
 
@@ -2149,8 +2139,6 @@ function buildHistorique() {
 
       var html = "";
 
-      // Compteur global de lignes, pour capper le délai d'animation
-      // même quand il y a des milliers d'alertes au total.
       var itemIndex = 0;
 
 
@@ -2167,8 +2155,6 @@ function buildHistorique() {
           byDate[date];
 
 
-        // Le conteneur du jour n'a plus la classe "sr" : il n'a plus
-        // besoin d'être animé lui-même, seules ses lignes le sont.
         html +=
           "<div class='hist-day'>";
 
@@ -2271,9 +2257,6 @@ function buildHistorique() {
             + "'>Localiser</button>";
 
 
-          // "sr" déplacé ici (par ligne) + délai capé à 20 pas pour ne
-          // jamais générer un délai de plusieurs dizaines de secondes
-          // sur un gros import.
           html +=
             "<div class='hist-item sr' style='transition-delay:"
             + (Math.min(itemIndex, 20) * 0.03)
@@ -2329,7 +2312,7 @@ function buildHistorique() {
 
           html +=
             "<div style='font-size:11px;"
-            + "color:#5A4E38'>"
+            + "color:#9B9AA5'>"
             + esc(a.description)
             + "</div>";
 
@@ -2570,12 +2553,6 @@ document
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCROLL OBSERVER
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// Seuil abaissé de 0.1 à 0.01 (filet de sécurité) : même si un futur
-// bloc redevient anormalement grand, il suffira qu'un tout petit bout
-// soit visible pour déclencher la révélation, au lieu d'exiger 10% de
-// sa hauteur totale.
 // ─────────────────────────────────────────────────────────────────────────────
 
 var io =
