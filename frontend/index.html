@@ -203,7 +203,6 @@ section.on{display:block;}
 .legitem{display:flex;align-items:center;gap:8px;}
 .legdot{width:8px;height:8px;border-radius:50%;}
 .legtxt{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--text-tertiary);}
-#mapframe{width:100%;height:calc(100vh - 116px);border:none;display:block;}
 
 /* ── ALERTES ── */
 .al-topbar{display:flex;align-items:center;justify-content:space-between;
@@ -223,6 +222,12 @@ section.on{display:block;}
   border:1px solid var(--on-fill-line);background:transparent;color:var(--on-fill-faint);cursor:pointer;transition:all .18s;}
 .fbtn:hover{border-color:var(--on-fill);color:var(--on-fill);}
 .fbtn.on{background:var(--on-fill);color:var(--accent);border-color:var(--on-fill);}
+.al-view{display:flex;gap:0;border:1px solid var(--on-fill-line);}
+.vbtn{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.12em;padding:9px 20px;
+  background:transparent;border:none;color:var(--on-fill-faint);cursor:pointer;transition:all .18s;}
+.vbtn+.vbtn{border-left:1px solid var(--on-fill-line);}
+.vbtn:hover{color:var(--on-fill);}
+.vbtn.on{background:var(--on-fill);color:var(--accent);}
 .alist{padding:0 64px;}
 .arow{display:grid;grid-template-columns:150px 1fr 80px 100px 160px;
   gap:20px;align-items:center;padding:22px 0;border-bottom:1px solid var(--border);
@@ -280,54 +285,65 @@ section.on{display:block;}
 .empty{display:flex;align-items:center;justify-content:center;height:400px;
   font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--text-tertiary);}
 
-/* ── IMPORT ── */
-.import-wrap{padding:56px 64px;}
-.import-eyebrow{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--text-tertiary);margin-bottom:40px;}
-.import-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);}
-.import-block{padding:40px;}
-.import-block+.import-block{border-left:1px solid var(--border);}
-.import-block-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:500;
-  letter-spacing:.16em;color:var(--text);margin-bottom:6px;}
-.import-block-sub{font-size:12px;color:var(--text-tertiary);line-height:1.7;margin-bottom:28px;}
-.drop-area{border:1px solid var(--border);padding:40px 24px;margin-bottom:16px;
+/* ── CARTE + IMPORT (panneau lateral navy, resultat visible immediatement) ── */
+.carte-layout{display:flex;height:calc(100vh - 116px);}
+.import-panel{width:320px;flex-shrink:0;background:var(--accent);overflow-y:auto;}
+.carte-mapwrap{flex:1;position:relative;min-width:0;}
+#mapframe{width:100%;height:100%;border:none;display:block;}
+
+.import-status{margin:20px 24px 0;padding:14px 16px;border:1px solid var(--on-fill-line);
+  font-family:'Space Mono',monospace;font-size:10px;line-height:1.7;color:var(--on-fill-faint);display:none;}
+.import-status.show{display:block;}
+.import-status.ok{border-color:var(--ok-on-navy);}
+.import-status.err{border-color:var(--critical-on-navy);}
+.import-status .ist-title{font-weight:700;letter-spacing:.06em;display:block;margin-bottom:6px;font-size:10px;}
+.import-status.ok .ist-title{color:var(--ok-on-navy);}
+.import-status.err .ist-title{color:var(--critical-on-navy);}
+
+.import-panel-body{padding:8px 24px 32px;}
+.import-block{padding:24px 0;border-bottom:1px solid var(--on-fill-line);}
+.import-block:last-child{border-bottom:none;}
+.import-block-title{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;
+  letter-spacing:.16em;color:var(--on-fill);margin-bottom:6px;}
+.import-block-sub{font-size:11px;color:var(--on-fill-faint);line-height:1.6;margin-bottom:16px;}
+.drop-area{border:1px dashed var(--on-fill-line);padding:20px 14px;margin-bottom:12px;
   transition:border-color .2s,background .2s;position:relative;}
-.drop-area.dragover{border-color:var(--accent);background:rgba(255,255,255,.04);}
+.drop-area.dragover{border-color:var(--on-fill);background:rgba(247,244,236,.06);}
 .drop-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.drop-icon{font-family:'Space Mono',monospace;font-size:28px;color:var(--border);
-  display:block;text-align:center;margin-bottom:12px;pointer-events:none;}
-.drop-main{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.14em;
-  color:var(--text-secondary);text-align:center;display:block;pointer-events:none;}
-.drop-sub{font-family:'Space Mono',monospace;font-size:9px;color:var(--text-tertiary);
-  text-align:center;display:block;margin-top:6px;pointer-events:none;}
-.drop-filename{font-family:'Space Mono',monospace;font-size:10px;color:var(--accent);
-  text-align:center;display:block;margin-top:8px;pointer-events:none;min-height:14px;}
+.drop-icon{font-family:'Space Mono',monospace;font-size:20px;color:var(--on-fill-line);
+  display:block;text-align:center;margin-bottom:8px;pointer-events:none;}
+.drop-main{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.1em;
+  color:var(--on-fill-soft);text-align:center;display:block;pointer-events:none;}
+.drop-sub{font-family:'Space Mono',monospace;font-size:8px;color:var(--on-fill-faint);
+  text-align:center;display:block;margin-top:4px;pointer-events:none;}
+.drop-filename{font-family:'Space Mono',monospace;font-size:9px;color:var(--on-fill);
+  text-align:center;display:block;margin-top:6px;pointer-events:none;min-height:12px;}
 .select-type{font-family:'Space Mono',monospace;font-size:10px;
-  padding:10px 14px;border:1px solid var(--border);background:var(--bg);
-  color:var(--text);width:100%;margin-bottom:12px;appearance:none;cursor:pointer;}
+  padding:9px 12px;border:1px solid var(--on-fill-line);background:transparent;
+  color:var(--on-fill);width:100%;margin-bottom:10px;appearance:none;cursor:pointer;}
+.select-type option{color:var(--text);}
 .ibtn{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.14em;
   padding:12px 28px;border:1px solid var(--text);background:transparent;color:var(--text);
   cursor:pointer;transition:all .18s;width:100%;}
 .ibtn:hover{background:var(--text);color:var(--bg);}
+.import-panel .ibtn{font-size:9px;padding:11px 20px;border-color:var(--on-fill);color:var(--on-fill);}
+.import-panel .ibtn:hover{background:var(--on-fill);color:var(--accent);}
 .ibtn.gold{border-color:var(--accent);color:var(--accent);}
 .ibtn.gold:hover{background:var(--accent);color:var(--bg);}
+.import-panel .ibtn.gold{border-color:var(--warning-on-navy);color:var(--warning-on-navy);}
+.import-panel .ibtn.gold:hover{background:var(--warning-on-navy);color:var(--accent);}
 .msg{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.1em;
   padding:10px 14px;margin-top:10px;display:none;line-height:1.5;}
-.msg.ok{display:block;color:var(--warning);border-left:2px solid var(--warning);}
-.msg.err{display:block;color:var(--critical);border-left:2px solid var(--critical);}
-.msg.info{display:block;color:var(--text-tertiary);border-left:2px solid var(--text-tertiary);}
-.compare-block{border:1px solid var(--border);border-top:none;display:none;}
-.compare-block.show{display:grid;grid-template-columns:repeat(3,1fr);}
-.cmp-cell{padding:20px 24px;border-right:1px solid var(--border);}
-.cmp-cell:last-child{border-right:none;}
-.cmp-key{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--text-tertiary);margin-bottom:6px;}
-.cmp-val{font-family:'Space Mono',monospace;font-size:22px;font-weight:300;color:var(--text);}
-.cmp-val.pos{color:var(--critical);}.cmp-val.neu{color:var(--warning);}
-.detect-section{margin-top:2px;border:1px solid var(--border);padding:36px 40px;}
-.detect-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:500;
-  letter-spacing:.16em;color:var(--text);margin-bottom:8px;}
-.detect-desc{font-size:12px;color:var(--text-secondary);line-height:1.7;margin-bottom:24px;max-width:560px;}
+.msg.ok{display:block;color:var(--ok-on-navy);border-left:2px solid var(--ok-on-navy);}
+.msg.err{display:block;color:var(--critical-on-navy);border-left:2px solid var(--critical-on-navy);}
+.msg.info{display:block;color:var(--on-fill-faint);border-left:2px solid var(--on-fill-line);}
 
-/* ── HISTORIQUE ── */
+@media(max-width:900px){
+  .carte-layout{flex-direction:column;height:auto;}
+  .import-panel{width:100%;max-height:340px;}
+  .carte-mapwrap{height:60vh;}
+}
+
 .hist-header{padding:48px 64px;background:var(--accent);}
 .hist-eyebrow{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--on-fill-faint);margin-bottom:12px;}
 .hist-total{font-family:'Fraunces',serif;font-size:52px;font-weight:300;color:var(--on-fill);}
@@ -372,7 +388,6 @@ section.on{display:block;}
   .trow .tc.b::before{content:none;}
   .ctopbar{flex-direction:column;align-items:flex-start;gap:10px;padding:12px 16px;}
   .leg{gap:12px;margin-left:0;}
-  #mapframe{height:calc(100vh - 160px);}
   .alhd{padding:32px 20px 24px;flex-direction:column;align-items:flex-start;}
   .alist{padding:0 20px;}
   .arow{grid-template-columns:1fr;gap:8px;}
@@ -497,11 +512,9 @@ section.on{display:block;}
 
   <div class="tabs" id="tabs">
     <div class="tab on"  id="tab-vue">Vue generale</div>
-    <div class="tab"     id="tab-carte">Carte</div>
+    <div class="tab"     id="tab-carte">Carte &amp; Import</div>
     <div class="tab"     id="tab-alertes">Alertes</div>
     <div class="tab"     id="tab-parcelles">Parcelles</div>
-    <div class="tab"     id="tab-import">Import</div>
-    <div class="tab"     id="tab-historique">Historique</div>
   </div>
   <div class="navr">
     <div class="pulse"></div>
@@ -543,7 +556,7 @@ section.on{display:block;}
   </div>
 </section>
 
-<!-- ══ CARTE ══ -->
+<!-- ══ CARTE & IMPORT ══ -->
 <section id="carte">
   <div class="ctopbar">
     <div class="ccoord" id="ccoord">LAT 14.71668 LON -17.46769 ZOOM 13</div>
@@ -552,13 +565,60 @@ section.on{display:block;}
       <div class="legitem"><div class="legdot" style="background:#96631A"></div><div class="legtxt">MODERE</div></div>
       <div class="legitem"><div class="legdot" style="background:#8C846E"></div><div class="legtxt">FAIBLE</div></div>
       <div class="legitem"><div class="legdot" style="background:#2E6B45"></div><div class="legtxt">NORMAL</div></div>
+      <div class="legitem"><div class="legdot" style="background:#2F6FE0"></div><div class="legtxt">VIENT D'ETRE IMPORTE</div></div>
     </div>
     <button class="export-btn" id="btn-export-carte">Exporter carte (image)</button>
   </div>
-  <iframe id="mapframe" src="about:blank"></iframe>
+  <div class="carte-layout">
+    <div class="import-panel">
+      <div class="pstitle">IMPORT &amp; TRAITEMENT</div>
+      <div id="import-status" class="import-status"></div>
+      <div class="import-panel-body">
+        <div class="import-block">
+          <div class="import-block-title">SHAPEFILE</div>
+          <div class="import-block-sub">ZIP (.shp/.dbf/.prj). Reprojection UTM 28N automatique.</div>
+          <div class="drop-area" id="drop-shp">
+            <input type="file" id="input-shp" accept=".zip">
+            <span class="drop-icon">&#8615;</span>
+            <span class="drop-main">Deposer le ZIP ici</span>
+            <span class="drop-sub">Max 50 Mo</span>
+            <span class="drop-filename" id="fn-shp"></span>
+          </div>
+          <button class="ibtn" id="btn-shp">Importer</button>
+          <div class="msg" id="msg-shp"></div>
+        </div>
+        <div class="import-block">
+          <div class="import-block-title">CSV</div>
+          <div class="import-block-sub">Transactions ou proprietaires.</div>
+          <select class="select-type" id="select-csv-type">
+            <option value="transaction">Transactions foncieres</option>
+            <option value="proprietaire">Proprietaires</option>
+          </select>
+          <div class="drop-area" id="drop-csv">
+            <input type="file" id="input-csv" accept=".csv">
+            <span class="drop-icon">&#8615;</span>
+            <span class="drop-main">Deposer le CSV ici</span>
+            <span class="drop-sub">Format .csv</span>
+            <span class="drop-filename" id="fn-csv"></span>
+          </div>
+          <button class="ibtn" id="btn-csv">Importer</button>
+          <div class="msg" id="msg-csv"></div>
+        </div>
+        <div class="import-block">
+          <div class="import-block-title">DETECTION ML</div>
+          <div class="import-block-sub">Isolation Forest sur toutes les parcelles.</div>
+          <button class="ibtn gold" id="btn-detection">Lancer la detection</button>
+          <div class="msg" id="msg-detect"></div>
+        </div>
+      </div>
+    </div>
+    <div class="carte-mapwrap">
+      <iframe id="mapframe" src="about:blank"></iframe>
+    </div>
+  </div>
 </section>
 
-<!-- ══ ALERTES ══ -->
+<!-- ══ ALERTES (vue par filtre + vue chronologique) ══ -->
 <section id="alertes">
   <div class="al-topbar">
     <div class="al-info" id="al-info">— ALERTES EN BASE</div>
@@ -569,7 +629,11 @@ section.on{display:block;}
       <div class="aleyebrow sr">REGISTRE DES ALERTES</div>
       <div class="altotal sr d1" id="altotal">000</div>
     </div>
-    <div class="filters sr d2">
+    <div class="al-view sr d1">
+      <button class="vbtn on" id="v-filtres">Par filtre</button>
+      <button class="vbtn" id="v-chrono">Chronologique</button>
+    </div>
+    <div class="filters sr d2" id="al-filters">
       <button class="fbtn on" id="f-tous">Tous</button>
       <button class="fbtn" id="f-chev">Chevauchement</button>
       <button class="fbtn" id="f-doub">Doublon titre</button>
@@ -578,6 +642,7 @@ section.on{display:block;}
     </div>
   </div>
   <div class="alist" id="alist"></div>
+  <div class="hist-list" id="hist-list" style="display:none"></div>
 </section>
 
 <!-- ══ PARCELLES ══ -->
@@ -589,65 +654,6 @@ section.on{display:block;}
     </div>
     <div id="pdetail"><div class="empty">SELECTIONNER UNE PARCELLE</div></div>
   </div>
-</section>
-
-<!-- ══ IMPORT ══ -->
-<section id="import">
-  <div class="import-wrap">
-    <div class="import-eyebrow sr">IMPORT DE DONNEES</div>
-    <div class="import-grid sr d1">
-      <div class="import-block">
-        <div class="import-block-title">SHAPEFILE</div>
-        <div class="import-block-sub">Fichier ZIP contenant .shp .dbf et .prj. Les geometries sont automatiquement reprojetees en UTM Zone 28N.</div>
-        <div class="drop-area" id="drop-shp">
-          <input type="file" id="input-shp" accept=".zip">
-          <span class="drop-icon">&#8615;</span>
-          <span class="drop-main">Deposer le fichier ZIP ici</span>
-          <span class="drop-sub">Formats acceptes : .zip (max 50 Mo)</span>
-          <span class="drop-filename" id="fn-shp"></span>
-        </div>
-        <button class="ibtn" id="btn-shp">Importer le shapefile</button>
-        <div class="msg" id="msg-shp"></div>
-        <div class="compare-block" id="compare-block">
-          <div class="cmp-cell"><div class="cmp-key">IMPORTEES</div><div class="cmp-val neu" id="cmp-imp">0</div></div>
-          <div class="cmp-cell"><div class="cmp-key">NOUVELLES ALERTES</div><div class="cmp-val pos" id="cmp-al">0</div></div>
-          <div class="cmp-cell"><div class="cmp-key">TAUX ANOMALIE</div><div class="cmp-val" id="cmp-tx">0%</div></div>
-        </div>
-      </div>
-      <div class="import-block">
-        <div class="import-block-title">CSV</div>
-        <div class="import-block-sub">Transactions ou proprietaires au format CSV. Selectionne le type avant de deposer le fichier.</div>
-        <select class="select-type" id="select-csv-type">
-          <option value="transaction">Transactions foncieres</option>
-          <option value="proprietaire">Proprietaires</option>
-        </select>
-        <div class="drop-area" id="drop-csv">
-          <input type="file" id="input-csv" accept=".csv">
-          <span class="drop-icon">&#8615;</span>
-          <span class="drop-main">Deposer le fichier CSV ici</span>
-          <span class="drop-sub">Formats acceptes : .csv</span>
-          <span class="drop-filename" id="fn-csv"></span>
-        </div>
-        <button class="ibtn" id="btn-csv">Importer le CSV</button>
-        <div class="msg" id="msg-csv"></div>
-      </div>
-    </div>
-    <div class="detect-section sr d2">
-      <div class="detect-title">LANCER LA DETECTION ML</div>
-      <div class="detect-desc">Execute l algorithme Isolation Forest sur toutes les parcelles. Les alertes sont generees automatiquement et apparaissent dans les onglets Alertes et Historique.</div>
-      <button class="ibtn gold" id="btn-detection">Lancer Isolation Forest</button>
-      <div class="msg" id="msg-detect"></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ HISTORIQUE ══ -->
-<section id="historique">
-  <div class="hist-header">
-    <div class="hist-eyebrow sr">HISTORIQUE DES DETECTIONS</div>
-    <div class="hist-total sr d1" id="hist-total">000</div>
-  </div>
-  <div class="hist-list" id="hist-list"></div>
 </section>
 
 <script src="sdfcs.js"></script>
