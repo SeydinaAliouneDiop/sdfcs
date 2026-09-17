@@ -163,10 +163,10 @@ function sc(s) {
 
 function scol(s) {
   return s >= 0.8
-    ? "#FF5C6C"
+    ? "#9C2B2B"
     : s >= 0.5
-      ? "#FFB238"
-      : "#9B9AA5";
+      ? "#96631A"
+      : "#8C846E";
 }
 
 
@@ -1162,7 +1162,7 @@ function showDetail(idx) {
     alh +=
       "<div style='flex:1;"
       + "font-size:11px;"
-      + "color:#9B9AA5;"
+      + "color:#4B4636;"
       + "line-height:1.5'>"
       + esc(a.d)
       + "</div>";
@@ -2312,7 +2312,7 @@ function buildHistorique() {
 
           html +=
             "<div style='font-size:11px;"
-            + "color:#9B9AA5'>"
+            + "color:#4B4636'>"
             + esc(a.description)
             + "</div>";
 
