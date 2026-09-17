@@ -2299,7 +2299,7 @@ function buildHistorique() {
 
           html +=
             "<span style='font-family:"
-            + "IBM Plex Mono,monospace;"
+            + "Space Mono,monospace;"
             + "font-size:12px;"
             + "font-weight:500'>"
             + esc(a.nicad)
