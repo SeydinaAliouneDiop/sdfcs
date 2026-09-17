@@ -7,6 +7,11 @@ var focusNicad = null;
 // Ids des alertes créées lors du dernier import/detection (surbrillance carte)
 var nouvellesAlertesIds = [];
 
+// Nicads des parcelles ajoutees par le tout dernier import (independamment
+// du fait qu'elles aient genere une alerte ou non) : sert a les montrer
+// immediatement sur la carte, comme demande.
+var nouvellesParcellesImportees = [];
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ECHAPPEMENT HTML (anti-XSS)
@@ -205,7 +210,7 @@ function voirSurCarte(nicad) {
 // CHARGEMENT
 // ─────────────────────────────────────────────────────────────────────────────
 
-function loadAll() {
+function loadAll(refreshMap) {
 
   Promise.all([
 
@@ -293,7 +298,7 @@ function loadAll() {
     buildAlertes();
     buildSidebar();
 
-    if (mapBuilt) {
+    if (refreshMap && mapBuilt) {
       buildCarte(true);
     }
 
@@ -1328,6 +1333,15 @@ function buildCarte(force) {
     }
   }
 
+  // Nicads des parcelles tout juste importees (avec ou sans alerte) : on
+  // veut que l'import soit visible sur la carte immediatement, meme si
+  // aucune anomalie n'a ete detectee dessus.
+  var nicadsImportes = {};
+
+  for (var m = 0; m < nouvellesParcellesImportees.length; m++) {
+    nicadsImportes[nouvellesParcellesImportees[m]] = true;
+  }
+
 
   var mk = "";
   var focusScript = "";
@@ -1359,10 +1373,11 @@ function buildCarte(force) {
       scol(p.sm);
 
     var estNouveau = !!nicadsNouveaux[p.n];
+    var estImporte = !!nicadsImportes[p.n];
     var estFocus = focusNicad && p.n === focusNicad;
 
     var r =
-      estNouveau || estFocus
+      estNouveau || estImporte || estFocus
         ? 13
         : (p.na > 0 ? 10 : 7);
 
@@ -1411,6 +1426,25 @@ function buildCarte(force) {
         + lon
         + "],{radius:14,color:'#00C2FF',weight:3,"
         + "fillOpacity:0.15,fillColor:'#00C2FF'})"
+        + ".addTo(map);"
+        + "pulseHalos.push(halo);";
+    }
+
+    else if (estImporte) {
+
+      coordsNouvelles.push([lat, lon]);
+
+      // Halo bleu : la parcelle vient d'etre importee mais n'a declenche
+      // aucune alerte. Sans ce repere, une donnee tout juste chargee sans
+      // anomalie est invisible au milieu des autres -> "on ne sait pas si
+      // l'import a marche".
+      mk +=
+        "var halo=L.circleMarker(["
+        + lat
+        + ","
+        + lon
+        + "],{radius:14,color:'#2F6FE0',weight:3,"
+        + "fillOpacity:0.15,fillColor:'#2F6FE0'})"
         + ".addTo(map);"
         + "pulseHalos.push(halo);";
     }
@@ -1489,7 +1523,7 @@ function buildCarte(force) {
 
     "try{",
 
-    "var map=L.map(\"map\")"
+    "var map=L.map(\"map\",{preferCanvas:true})"
     + ".setView([14.716,-17.467],13);",
 
     "L.tileLayer("
@@ -1589,6 +1623,7 @@ function buildCarte(force) {
   // prochain rebuild automatique (ex: après un simple loadAll()).
   focusNicad = null;
   nouvellesAlertesIds = [];
+  nouvellesParcellesImportees = [];
 }
 
 
@@ -1735,7 +1770,46 @@ function idsAlertesActuelles() {
 }
 
 
-function apresGenerationAlertes(idsAvant) {
+// Meme principe que idsAlertesActuelles, mais pour les parcelles : permet de
+// savoir lesquelles viennent d'etre importees, qu'elles aient genere une
+// alerte ou non, pour les faire apparaitre tout de suite sur la carte.
+function nicadsParcellesActuelles() {
+
+  return request("/parcelles")
+    .then(function(r) {
+      return r.json();
+    })
+    .then(function(parcelles) {
+      return parcelles.map(function(p) {
+        return p.nicad;
+      });
+    });
+}
+
+
+function showImportStatus(ok, title, lines) {
+
+  var el = document.getElementById("import-status");
+
+  if (!el) return;
+
+  el.className = "import-status show " + (ok ? "ok" : "err");
+
+  var html = "<span class='ist-title'>" + (ok ? "\u2713 " : "\u2715 ") + esc(title) + "</span>";
+
+  for (var i = 0; i < lines.length; i++) {
+    html += "<div>" + esc(lines[i]) + "</div>";
+  }
+
+  el.innerHTML = html;
+}
+
+
+// idsAvant : ids d'alertes avant l'action (obligatoire)
+// nicadsAvant : nicads de parcelles avant l'action (optionnel, seulement
+//   pertinent pour un import shapefile qui ajoute de nouvelles geometries)
+// meta : { message, inserees } pour construire la banniere de resultat
+function apresGenerationAlertes(idsAvant, nicadsAvant, meta) {
 
   return idsAlertesActuelles().then(function(idsApres) {
 
@@ -1743,19 +1817,48 @@ function apresGenerationAlertes(idsAvant) {
       return idsAvant.indexOf(id) === -1;
     });
 
-    loadAll();
-    buildHistorique();
+    var nbNouvellesAlertes = nouvellesAlertesIds.length;
 
-    if (nouvellesAlertesIds.length > 0) {
+    var suite = nicadsAvant
+      ? nicadsParcellesActuelles()
+      : Promise.resolve(null);
 
-      // Visibilité immédiate : on bascule direct sur la carte et les
-      // nouvelles alertes y apparaissent en surbrillance pulsante,
-      // sans que l'utilisateur ait besoin d'aller vérifier le tableau.
-      goSection("carte");
+    return suite.then(function(nicadsApres) {
+
+      nouvellesParcellesImportees = nicadsApres
+        ? nicadsApres.filter(function(n) {
+            return nicadsAvant.indexOf(n) === -1;
+          })
+        : [];
+
+      // On est deja sur l'ecran Carte & Import (c'est la que vivent les
+      // formulaires d'import) : pas besoin de changer d'onglet, on
+      // rafraichit juste la carte en place pour un retour immediat.
+      loadAll(true);
+      buildHistorique();
       buildCarte(true);
-    }
 
-    return idsApres.length - idsAvant.length;
+      var lines = [];
+
+      if (meta && meta.inserees !== undefined) {
+        lines.push(meta.inserees + " entite(s) importee(s)");
+      }
+
+      if (nouvellesParcellesImportees.length > 0) {
+        lines.push(nouvellesParcellesImportees.length + " parcelle(s) visible(s) sur la carte (repere bleu)");
+      }
+
+      lines.push(nbNouvellesAlertes + " nouvelle(s) alerte(s) detectee(s)");
+
+      if (meta && meta.inserees) {
+        var taux = Math.round((nbNouvellesAlertes / meta.inserees) * 100);
+        lines.push("Taux d'anomalie : " + taux + "%");
+      }
+
+      showImportStatus(true, (meta && meta.message) || "Traitement termine", lines);
+
+      return nbNouvellesAlertes;
+    });
   });
 }
 
@@ -1796,14 +1899,18 @@ document
 
 
       var idsAvant = [];
-      var nbImporteesGlobal = 0;
+      var nicadsAvant = [];
 
 
-      idsAlertesActuelles()
+      Promise.all([
+        idsAlertesActuelles(),
+        nicadsParcellesActuelles()
+      ])
 
-        .then(function(ids) {
+        .then(function(res) {
 
-          idsAvant = ids;
+          idsAvant = res[0];
+          nicadsAvant = res[1];
 
           var fd =
             new FormData();
@@ -1838,19 +1945,10 @@ document
             "ok"
           );
 
-          nbImporteesGlobal = data.inserees;
-
-          return apresGenerationAlertes(idsAvant);
-
-        })
-
-
-        .then(function(nouv) {
-
-          showComparaison(
-            nbImporteesGlobal,
-            nouv
-          );
+          return apresGenerationAlertes(idsAvant, nicadsAvant, {
+            message: data.message,
+            inserees: data.inserees
+          });
 
         })
 
@@ -1861,6 +1959,12 @@ document
             "msg-shp",
             "Erreur lors de l import",
             "err"
+          );
+
+          showImportStatus(
+            false,
+            "Echec de l'import shapefile",
+            ["Verifie le fichier (.zip avec .shp/.dbf/.prj) et reessaie."]
           );
 
         });
@@ -1954,7 +2058,9 @@ document
           // Un import CSV de transactions peut déclencher le trigger
           // "zone_illegale" côté PostGIS : on vérifie donc aussi les
           // nouvelles alertes ici, pas seulement après la détection ML.
-          return apresGenerationAlertes(idsAvant);
+          return apresGenerationAlertes(idsAvant, null, {
+            message: data.message
+          });
 
         })
 
@@ -1964,6 +2070,12 @@ document
             "msg-csv",
             "Erreur lors de l import",
             "err"
+          );
+
+          showImportStatus(
+            false,
+            "Echec de l'import CSV",
+            ["Verifie le fichier et le type selectionne, puis reessaie."]
           );
 
         });
@@ -2019,7 +2131,9 @@ document
             "ok"
           );
 
-          return apresGenerationAlertes(idsAvant);
+          return apresGenerationAlertes(idsAvant, null, {
+            message: data.message
+          });
 
         })
 
@@ -2031,54 +2145,16 @@ document
             "err"
           );
 
+          showImportStatus(
+            false,
+            "Echec de la detection",
+            ["La detection ML n'a pas pu s'executer. Reessaie dans un instant."]
+          );
+
         });
 
     }
   );
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPARAISON (bloc affiché après un import shapefile)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function showComparaison(
-  nbImp,
-  nouv
-) {
-
-  var taux =
-    nbImp > 0
-      ? Math.round(
-          (nouv / nbImp) * 100
-        )
-      : 0;
-
-
-  document.getElementById(
-    "cmp-imp"
-  ).textContent =
-    nbImp;
-
-
-  document.getElementById(
-    "cmp-al"
-  ).textContent =
-    nouv > 0
-      ? "+" + nouv
-      : "0";
-
-
-  document.getElementById(
-    "cmp-tx"
-  ).textContent =
-    taux + "%";
-
-
-  document.getElementById(
-    "compare-block"
-  ).classList.add("show");
-
-}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2087,320 +2163,164 @@ function showComparaison(
 
 function buildHistorique() {
 
-  request("/alertes")
+  // Reutilise le tableau A deja charge par loadAll() : evite un aller-retour
+  // reseau /alertes redondant a chaque action (confirmer/rejeter, import,
+  // detection), ce qui compte des lors que la base couvre tout le pays.
+  var alertes = A;
 
-    .then(function(r) {
-      return r.json();
-    })
+  var byDate = {};
 
-    .then(function(alertes) {
+  for (var i = 0; i < alertes.length; i++) {
 
-      document.getElementById(
-        "hist-total"
-      ).textContent =
-        pad(alertes.length, 3);
+    var a = alertes[i];
 
+    var dt = a.dt ? a.dt.substring(0, 10) : "Inconnu";
 
-      var byDate = {};
+    if (!byDate[dt]) {
+      byDate[dt] = [];
+    }
 
+    byDate[dt].push(a);
+  }
 
-      for (
-        var i = 0;
-        i < alertes.length;
-        i++
-      ) {
+  var dates = Object.keys(byDate).sort().reverse();
 
-        var a = alertes[i];
+  var html = "";
+  var itemIndex = 0;
 
+  for (var d = 0; d < dates.length; d++) {
 
-        var dt =
-          a.date_detection
-            ? a.date_detection.substring(
-                0,
-                10
-              )
-            : "Inconnu";
+    var date = dates[d];
+    var items = byDate[date];
 
+    html += "<div class='hist-day'>";
 
-        if (!byDate[dt]) {
-          byDate[dt] = [];
-        }
+    html +=
+      "<div class='hist-day-label'>"
+      + esc(date)
+      + " — "
+      + items.length
+      + " alerte(s)"
+      + "</div>";
 
+    for (var j = 0; j < items.length; j++) {
 
-        byDate[dt].push(a);
+      var it = items[j];
+
+      var cl = sc(it.s);
+
+      var heure =
+        it.dt && it.dt.length > 10
+          ? it.dt.substring(11, 16)
+          : "--";
+
+      var confHtml = "";
+
+      if (it.st === "resolue") {
+
+        confHtml = "<span class='tag-ok'>CONFIRME</span>";
+
+      } else if (it.st === "fausse_alerte") {
+
+        confHtml = "<span class='tag-ko'>REJETE</span>";
+
+      } else {
+
+        confHtml = "<div class='conf-wrap'>";
+
+        confHtml +=
+          "<button class='cbtn ok' data-id='"
+          + it.id
+          + "' data-st='resolue'>Confirmer</button>";
+
+        confHtml +=
+          "<button class='cbtn ko' data-id='"
+          + it.id
+          + "' data-st='fausse_alerte'>Rejeter</button>";
+
+        confHtml += "</div>";
       }
 
+      confHtml +=
+        "<button class='cbtn loc' data-nicad='"
+        + esc(it.n)
+        + "'>Localiser</button>";
 
-      var dates =
-        Object.keys(byDate)
-          .sort()
-          .reverse();
+      html +=
+        "<div class='hist-item sr' style='transition-delay:"
+        + (Math.min(itemIndex, 20) * 0.03)
+        + "s'>";
 
+      itemIndex++;
 
-      var html = "";
+      html += "<div class='hist-heure'>" + esc(heure) + "</div>";
 
-      var itemIndex = 0;
+      html += "<div style='flex:1'>";
 
+      html +=
+        "<div style='display:flex;align-items:center;gap:10px;margin-bottom:3px'>";
 
-      for (
-        var d = 0;
-        d < dates.length;
-        d++
-      ) {
+      html +=
+        "<span class='abadge "
+        + cl
+        + "'>"
+        + esc(it.t.replace(/_/g, " ").toUpperCase())
+        + "</span>";
 
-        var date =
-          dates[d];
+      html +=
+        "<span style='font-family:Space Mono,monospace;font-size:12px;font-weight:500'>"
+        + esc(it.n)
+        + "</span>";
 
-        var items =
-          byDate[date];
+      html += "</div>";
 
+      html += "<div style='font-size:11px;color:#4B4636'>" + esc(it.d) + "</div>";
 
-        html +=
-          "<div class='hist-day'>";
+      html += "</div>";
 
+      html +=
+        "<div style='font-family:monospace;font-size:18px;color:"
+        + scol(it.s)
+        + ";text-align:right'>"
+        + it.s.toFixed(3)
+        + "</div>";
 
-        html +=
-          "<div class='hist-day-label'>"
-          + esc(date)
-          + " — "
-          + items.length
-          + " alerte(s)"
-          + "</div>";
+      html += confHtml;
 
+      html += "</div>";
+    }
 
-        for (
-          var i = 0;
-          i < items.length;
-          i++
-        ) {
+    html += "</div>";
+  }
 
-          var a =
-            items[i];
+  document.getElementById("hist-list").innerHTML = html;
 
+  document
+    .querySelectorAll(".hist-list .cbtn.ok, .hist-list .cbtn.ko")
+    .forEach(function(btn) {
 
-          var cl =
-            a.score_risque >= 0.8
-              ? "r"
-              : a.score_risque >= 0.5
-                ? "g"
-                : "n";
+      btn.addEventListener("click", function() {
 
+        confirmerAlerte(
+          parseInt(this.getAttribute("data-id")),
+          this.getAttribute("data-st")
+        );
 
-          var heure =
-            a.date_detection &&
-            a.date_detection.length > 10
-              ? a.date_detection.substring(
-                  11,
-                  16
-                )
-              : "--";
-
-
-          var confHtml = "";
-
-
-          if (
-            a.statut === "resolue"
-          ) {
-
-            confHtml =
-              "<span class='tag-ok'>"
-              + "CONFIRME"
-              + "</span>";
-
-          }
-
-          else if (
-            a.statut === "fausse_alerte"
-          ) {
-
-            confHtml =
-              "<span class='tag-ko'>"
-              + "REJETE"
-              + "</span>";
-
-          }
-
-          else {
-
-            confHtml =
-              "<div class='conf-wrap'>";
-
-
-            confHtml +=
-              "<button class='cbtn ok' "
-              + "data-id='"
-              + a.id_alerte
-              + "' "
-              + "data-st='resolue'>"
-              + "Confirmer"
-              + "</button>";
-
-
-            confHtml +=
-              "<button class='cbtn ko' "
-              + "data-id='"
-              + a.id_alerte
-              + "' "
-              + "data-st='fausse_alerte'>"
-              + "Rejeter"
-              + "</button>";
-
-
-            confHtml +=
-              "</div>";
-          }
-
-          confHtml +=
-            "<button class='cbtn loc' data-nicad='"
-            + esc(a.nicad)
-            + "'>Localiser</button>";
-
-
-          html +=
-            "<div class='hist-item sr' style='transition-delay:"
-            + (Math.min(itemIndex, 20) * 0.03)
-            + "s'>";
-
-          itemIndex++;
-
-
-          html +=
-            "<div class='hist-heure'>"
-            + esc(heure)
-            + "</div>";
-
-
-          html +=
-            "<div style='flex:1'>";
-
-
-          html +=
-            "<div style='display:flex;"
-            + "align-items:center;"
-            + "gap:10px;"
-            + "margin-bottom:3px'>";
-
-
-          html +=
-            "<span class='abadge "
-            + cl
-            + "'>"
-            + esc(
-                a.type_anomalie
-                  .replace(
-                    /_/g,
-                    " "
-                  )
-                  .toUpperCase()
-              )
-            + "</span>";
-
-
-          html +=
-            "<span style='font-family:"
-            + "Space Mono,monospace;"
-            + "font-size:12px;"
-            + "font-weight:500'>"
-            + esc(a.nicad)
-            + "</span>";
-
-
-          html +=
-            "</div>";
-
-
-          html +=
-            "<div style='font-size:11px;"
-            + "color:#4B4636'>"
-            + esc(a.description)
-            + "</div>";
-
-
-          html +=
-            "</div>";
-
-
-          html +=
-            "<div style='font-family:"
-            + "monospace;"
-            + "font-size:18px;"
-            + "color:"
-            + scol(a.score_risque)
-            + ";text-align:right'>"
-            + parseFloat(
-                a.score_risque
-              ).toFixed(3)
-            + "</div>";
-
-
-          html +=
-            confHtml;
-
-
-          html +=
-            "</div>";
-        }
-
-
-        html +=
-          "</div>";
-      }
-
-
-      document.getElementById(
-        "hist-list"
-      ).innerHTML =
-        html;
-
-
-      document
-        .querySelectorAll(".hist-list .cbtn.ok, .hist-list .cbtn.ko")
-        .forEach(function(btn) {
-
-          btn.addEventListener(
-            "click",
-            function() {
-
-              confirmerAlerte(
-                parseInt(
-                  this.getAttribute(
-                    "data-id"
-                  )
-                ),
-
-                this.getAttribute(
-                  "data-st"
-                )
-              );
-
-            }
-          );
-
-        });
-
-
-      document
-        .querySelectorAll(".hist-list .cbtn.loc")
-        .forEach(function(btn) {
-
-          btn.addEventListener(
-            "click",
-            function() {
-
-              voirSurCarte(
-                this.getAttribute("data-nicad")
-              );
-
-            }
-          );
-
-        });
-
-
-      obs();
+      });
 
     });
+
+  document
+    .querySelectorAll(".hist-list .cbtn.loc")
+    .forEach(function(btn) {
+
+      btn.addEventListener("click", function() {
+        voirSurCarte(this.getAttribute("data-nicad"));
+      });
+
+    });
+
+  obs();
 }
 
 
@@ -2468,11 +2388,6 @@ function goSection(id) {
   }
 
 
-  if (id === "historique") {
-    buildHistorique();
-  }
-
-
   if (currentTabEl) {
     currentTabEl.textContent =
       document.getElementById("tab-" + id).textContent;
@@ -2531,24 +2446,35 @@ document
   );
 
 
-document
-  .getElementById("tab-import")
-  .addEventListener(
-    "click",
-    function() {
-      goSection("import");
-    }
-  );
+// ─────────────────────────────────────────────────────────────────────────────
+// VUE ALERTES : bascule entre la liste filtree et la vue chronologique
+// (fusion des anciens onglets Alertes / Historique, demandee pour reduire
+// le nombre d'onglets)
+// ─────────────────────────────────────────────────────────────────────────────
 
+function setAlView(mode) {
+
+  var isChrono = mode === "chrono";
+
+  document.getElementById("v-filtres").classList.toggle("on", !isChrono);
+  document.getElementById("v-chrono").classList.toggle("on", isChrono);
+
+  document.getElementById("al-filters").style.display = isChrono ? "none" : "flex";
+  document.getElementById("alist").style.display = isChrono ? "none" : "block";
+  document.getElementById("hist-list").style.display = isChrono ? "block" : "none";
+}
 
 document
-  .getElementById("tab-historique")
-  .addEventListener(
-    "click",
-    function() {
-      goSection("historique");
-    }
-  );
+  .getElementById("v-filtres")
+  .addEventListener("click", function() {
+    setAlView("filtres");
+  });
+
+document
+  .getElementById("v-chrono")
+  .addEventListener("click", function() {
+    setAlView("chrono");
+  });
 
 
 // ─────────────────────────────────────────────────────────────────────────────
