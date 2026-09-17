@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SDFCS</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Work+Sans:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Work+Sans:wght@300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -12,6 +12,7 @@
   --accent:#1C2E4A;--accent-hover:#28405F;--accent-soft:#E4E9F0;--warning:#96631A;
   --text:#16130E;--text-secondary:#4B4636;--text-tertiary:#635C48;--border:#DFD6C0;
   --critical:#9C2B2B;--ok:#2E6B45;--on-fill:#F7F4EC;
+  --critical-on-navy:#E07A6E;--warning-on-navy:#D9A24B;--ok-on-navy:#5FAE7C;
   --on-fill-soft:rgba(247,244,236,.68);--on-fill-faint:rgba(247,244,236,.48);--on-fill-line:rgba(247,244,236,.18);
 }
 html,body{background:var(--bg);color:var(--text);font-family:'Work Sans',sans-serif;overflow-x:hidden;}
@@ -48,7 +49,7 @@ html,body{background:var(--bg);color:var(--text);font-family:'Work Sans',sans-se
 .login-brand-mid{max-width:420px;}
 .login-headline{font-family:'Fraunces',serif;font-weight:300;font-size:40px;
   line-height:1.22;color:var(--on-fill);}
-.login-headline em{font-style:italic;color:var(--on-fill);}
+.login-headline em{font-style:normal;color:var(--on-fill);}
 .login-tagline{font-size:13px;color:rgba(247,244,236,.62);line-height:1.8;margin-top:22px;max-width:360px;}
 
 .login-stats{display:flex;gap:36px;margin-top:44px;padding-top:24px;border-top:1px solid rgba(247,244,236,.16);}
@@ -134,7 +135,6 @@ nav{position:sticky;top:0;z-index:200;background:var(--accent);border-bottom:1px
 .tab.on{color:var(--on-fill);border-bottom-color:var(--on-fill);}
 .navr{margin-left:auto;display:flex;align-items:center;gap:16px;
   font-family:'Space Mono',monospace;font-size:10px;color:var(--on-fill-faint);letter-spacing:.1em;flex-shrink:0;}
-.navref{color:var(--on-fill-faint);border-right:1px solid var(--on-fill-line);padding-right:16px;}
 .pulse{width:7px;height:7px;border-radius:50%;background:var(--on-fill);animation:blink 2s infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
 .logout-btn{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.12em;
@@ -160,11 +160,14 @@ section.on{display:block;}
 
 /* ── VUE GENERALE ── */
 .hero{display:grid;grid-template-columns:1fr 1fr;min-height:380px;border-bottom:1px solid var(--border);}
-.hl{padding:64px;border-right:1px solid var(--border);}
+.hl{padding:64px;background:var(--accent);display:flex;flex-direction:column;justify-content:center;}
+.hl .eyebrow{color:var(--on-fill-faint);}
+.hl .h1{color:var(--on-fill);}
 .eyebrow{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--text-tertiary);margin-bottom:20px;}
 .h1{font-family:'Fraunces',serif;font-size:46px;font-weight:300;line-height:1.15;color:var(--text);}
-.h1 em{font-style:italic;color:var(--accent);}
+.h1 em{font-style:normal;color:var(--on-fill);}
 .hp{font-size:13px;color:var(--text-secondary);line-height:1.8;margin-top:20px;max-width:380px;}
+.hl .hp{color:var(--on-fill-soft);}
 .hright{display:flex;flex-direction:column;justify-content:flex-end;padding:64px;}
 .bignum{font-family:'Fraunces',serif;font-size:84px;font-weight:300;color:var(--text);line-height:1;
   border-bottom:1px solid var(--border);padding-bottom:18px;margin-bottom:16px;}
@@ -211,15 +214,15 @@ section.on{display:block;}
   cursor:pointer;transition:all .18s;}
 .export-btn:hover{background:var(--text);color:var(--bg);}
 .export-btn:disabled{opacity:.5;cursor:default;}
-.alhd{padding:48px 64px 36px;border-bottom:1px solid var(--border);
+.alhd{padding:48px 64px;background:var(--accent);
   display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:20px;}
-.aleyebrow{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--text-tertiary);margin-bottom:12px;}
-.altotal{font-family:'Fraunces',serif;font-size:52px;font-weight:300;color:var(--text);}
+.aleyebrow{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--on-fill-faint);margin-bottom:12px;}
+.altotal{font-family:'Fraunces',serif;font-size:52px;font-weight:300;color:var(--on-fill);}
 .filters{display:flex;gap:6px;flex-wrap:wrap;}
 .fbtn{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.12em;padding:8px 18px;
-  border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;transition:all .18s;}
-.fbtn:hover{border-color:var(--accent);color:var(--accent);}
-.fbtn.on{background:var(--accent);color:var(--bg);border-color:var(--accent);}
+  border:1px solid var(--on-fill-line);background:transparent;color:var(--on-fill-faint);cursor:pointer;transition:all .18s;}
+.fbtn:hover{border-color:var(--on-fill);color:var(--on-fill);}
+.fbtn.on{background:var(--on-fill);color:var(--accent);border-color:var(--on-fill);}
 .alist{padding:0 64px;}
 .arow{display:grid;grid-template-columns:150px 1fr 80px 100px 160px;
   gap:20px;align-items:center;padding:22px 0;border-bottom:1px solid var(--border);
@@ -250,19 +253,19 @@ section.on{display:block;}
 
 /* ── PARCELLES ── */
 .playout{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 60px);}
-.psidebar{border-right:1px solid var(--border);overflow-y:auto;}
-.pstitle{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--text-tertiary);
-  padding:24px 28px 14px;border-bottom:1px solid var(--border);}
+.psidebar{background:var(--accent);overflow-y:auto;}
+.pstitle{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--on-fill-faint);
+  padding:24px 28px 14px;border-bottom:1px solid var(--on-fill-line);}
 .pitem{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;
-  border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
-.pitem:hover{background:rgba(255,255,255,.06);}
-.pitem.on{background:var(--accent);}
-.pitem.on .pnicad,.pitem.on .pcnt{color:var(--bg);}
+  border-bottom:1px solid var(--on-fill-line);cursor:pointer;transition:background .15s;}
+.pitem:hover{background:rgba(247,244,236,.08);}
+.pitem.on{background:var(--on-fill);}
+.pitem.on .pnicad,.pitem.on .pcnt{color:var(--accent);}
 .pnwrap{display:flex;align-items:center;gap:10px;}
 .pind{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
-.pind.r{background:var(--critical);}.pind.g{background:var(--warning);}.pind.ok{background:var(--ok);}
-.pnicad{font-family:'Space Mono',monospace;font-size:11px;font-weight:500;color:var(--text);}
-.pcnt{font-family:'Space Mono',monospace;font-size:9px;color:var(--text-tertiary);}
+.pind.r{background:var(--critical-on-navy);}.pind.g{background:var(--warning-on-navy);}.pind.ok{background:var(--ok-on-navy);}
+.pnicad{font-family:'Space Mono',monospace;font-size:11px;font-weight:500;color:var(--on-fill);}
+.pcnt{font-family:'Space Mono',monospace;font-size:9px;color:var(--on-fill-faint);}
 .pdetailwrap{padding:48px 56px;}
 .pdnicad{font-family:'Fraunces',serif;font-size:42px;font-weight:300;color:var(--text);margin-bottom:6px;}
 .pdzone{font-size:12px;color:var(--text-secondary);margin-bottom:40px;}
@@ -325,9 +328,9 @@ section.on{display:block;}
 .detect-desc{font-size:12px;color:var(--text-secondary);line-height:1.7;margin-bottom:24px;max-width:560px;}
 
 /* ── HISTORIQUE ── */
-.hist-header{padding:48px 64px 36px;border-bottom:1px solid var(--border);}
-.hist-eyebrow{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--text-tertiary);margin-bottom:12px;}
-.hist-total{font-family:'Fraunces',serif;font-size:52px;font-weight:300;color:var(--text);}
+.hist-header{padding:48px 64px;background:var(--accent);}
+.hist-eyebrow{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--on-fill-faint);margin-bottom:12px;}
+.hist-total{font-family:'Fraunces',serif;font-size:52px;font-weight:300;color:var(--on-fill);}
 .hist-list{padding:0 64px 80px;}
 .hist-day{padding-top:28px;}
 .hist-day-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;
@@ -340,7 +343,6 @@ section.on{display:block;}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
-  .navref{display:none;}
   nav{padding:0 16px;}
   .logo-sub,.lsub{display:none;}
   .menu-toggle{display:flex;}
@@ -502,7 +504,6 @@ section.on{display:block;}
     <div class="tab"     id="tab-historique">Historique</div>
   </div>
   <div class="navr">
-    <span class="navref">DOSSIER N&deg; 2026-DK-0417</span>
     <div class="pulse"></div>
     <span id="clk">--:--:--</span>
     <button class="logout-btn" id="btn-logout">DECONNEXION</button>
