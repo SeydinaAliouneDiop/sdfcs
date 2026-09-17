@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SDFCS</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,400&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
-  --bg:#0B0B0E;--surface:#141417;--surface-2:#1C1C21;
-  --accent:#7C5CFF;--accent-hover:#8F72FF;--accent-soft:#241E3D;--warning:#FFB238;
-  --text:#F4F3F1;--text-secondary:#9B9AA5;--text-tertiary:#6B6A74;--border:#2A2A31;
-  --critical:#FF5C6C;--ok:#35D07F;
+  --bg:#F7F4EC;--surface:#FFFFFF;--surface-2:#F0EBDD;
+  --accent:#1C2E4A;--accent-hover:#28405F;--accent-soft:#E4E9F0;--warning:#96631A;
+  --text:#16130E;--text-secondary:#4B4636;--text-tertiary:#635C48;--border:#DFD6C0;
+  --critical:#9C2B2B;--ok:#2E6B45;--on-fill:#F7F4EC;
 }
 html,body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;overflow-x:hidden;}
 
@@ -27,55 +27,40 @@ html,body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',san
 #login-overlay{position:fixed;inset:0;z-index:999;display:grid;
   grid-template-columns:1.15fr 1fr;background:var(--bg);}
 
-/* -- panneau de marque (gauche) -- */
-.login-brand{position:relative;background:var(--bg);overflow:hidden;
+/* -- panneau de marque (gauche) : bloc "registre officiel", sans degrade ni grille animee -- */
+.login-brand{position:relative;background:var(--accent);overflow:hidden;
   display:flex;flex-direction:column;justify-content:space-between;
   padding:56px;isolation:isolate;}
-
-.login-grid{position:absolute;inset:0;opacity:.35;z-index:-1;
-  background-image:
-    linear-gradient(rgba(244,243,241,.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(244,243,241,.06) 1px, transparent 1px);
-  background-size:42px 42px;
-  animation:gridpan 40s linear infinite;}
-@keyframes gridpan{from{background-position:0 0;}to{background-position:420px 420px;}}
-
-.login-glow{position:absolute;width:640px;height:640px;border-radius:50%;
-  background:radial-gradient(circle, rgba(124,92,255,.35) 0%, rgba(124,92,255,0) 70%);
-  top:-220px;right:-220px;z-index:-1;pointer-events:none;}
+.login-brand::before{content:"";position:absolute;inset:18px;border:1px solid rgba(247,244,236,.16);
+  pointer-events:none;}
 
 .login-brand-top{display:flex;align-items:center;gap:14px;}
-.login-mark{position:relative;width:52px;height:52px;flex-shrink:0;}
-.login-mark svg{width:100%;height:100%;}
-.login-mark .ring{fill:none;stroke:var(--accent);stroke-width:1;opacity:.5;
-  transform-origin:center;animation:ringpulse 3s ease-out infinite;}
-.login-mark .ring2{animation-delay:1.5s;}
-@keyframes ringpulse{
-  0%{transform:scale(.7);opacity:.7;}
-  100%{transform:scale(1.9);opacity:0;}
-}
+.login-mark{position:relative;width:48px;height:48px;flex-shrink:0;
+  border:1px solid rgba(247,244,236,.4);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;}
+.login-mark span{font-family:'IBM Plex Serif',serif;font-size:15px;color:var(--on-fill);}
 .login-brand-name{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;
-  letter-spacing:.28em;color:var(--bg);}
+  letter-spacing:.28em;color:var(--on-fill);}
 .login-brand-sub{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;
-  color:var(--text-tertiary);margin-top:4px;}
+  color:rgba(247,244,236,.55);margin-top:4px;}
 
 .login-brand-mid{max-width:420px;}
-.login-headline{font-family:'IBM Plex Mono',monospace;font-weight:300;font-size:38px;
-  line-height:1.2;color:var(--bg);}
-.login-headline em{font-style:normal;color:var(--warning);}
-.login-tagline{font-size:13px;color:var(--text-secondary);line-height:1.8;margin-top:20px;max-width:360px;}
+.login-headline{font-family:'IBM Plex Serif',serif;font-weight:300;font-size:40px;
+  line-height:1.22;color:var(--on-fill);}
+.login-headline em{font-style:italic;color:var(--on-fill);}
+.login-tagline{font-size:13px;color:rgba(247,244,236,.62);line-height:1.8;margin-top:22px;max-width:360px;}
 
-.login-stats{display:flex;gap:36px;margin-top:44px;}
+.login-stats{display:flex;gap:36px;margin-top:44px;padding-top:24px;border-top:1px solid rgba(247,244,236,.16);}
 .login-stat-lbl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.16em;
-  color:var(--text-tertiary);margin-bottom:8px;}
-.login-stat-val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:300;
-  color:var(--bg);}
+  color:rgba(247,244,236,.5);margin-bottom:8px;}
+.login-stat-val{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;
+  color:var(--on-fill);}
 
 .login-brand-bottom{display:flex;align-items:center;justify-content:space-between;
-  font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--text-tertiary);
-  border-top:1px solid rgba(244,243,241,.1);padding-top:20px;}
+  font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:rgba(247,244,236,.55);
+  border-top:1px solid rgba(247,244,236,.16);padding-top:20px;}
 .login-live{display:flex;align-items:center;gap:8px;}
-.login-live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);
+.login-live-dot{width:6px;height:6px;border-radius:50%;background:var(--on-fill);
   animation:blink 2s infinite;}
 
 /* -- panneau formulaire (droite) -- */
@@ -83,7 +68,7 @@ html,body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',san
 #login-form{width:100%;max-width:340px;}
 .login-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.22em;
   color:var(--text-tertiary);margin-bottom:10px;}
-.login-title{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:300;
+.login-title{font-family:'IBM Plex Serif',serif;font-size:26px;font-weight:400;
   color:var(--text);margin-bottom:36px;}
 
 .login-field{position:relative;margin-bottom:20px;}
@@ -96,16 +81,16 @@ html,body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',san
 .login-input:focus{outline:none;border-bottom-color:var(--accent);}
 .login-input:focus + label,
 .login-input:not(:placeholder-shown) + label{
-  transform:translateY(-16px) scale(.72);color:var(--warning);}
+  transform:translateY(-16px) scale(.72);color:var(--accent);}
 
 .login-btn{width:100%;padding:14px;border:1px solid var(--accent);background:var(--accent);
-  color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
+  color:var(--on-fill);font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
   cursor:pointer;transition:all .18s;margin-top:12px;display:flex;align-items:center;
   justify-content:center;gap:10px;}
 .login-btn:hover{background:var(--accent-hover);border-color:var(--accent-hover);}
 .login-btn:disabled{opacity:.55;cursor:default;background:var(--accent);}
-.login-spinner{width:12px;height:12px;border-radius:50%;border:2px solid rgba(244,243,241,.3);
-  border-top-color:var(--bg);animation:spin .7s linear infinite;display:none;}
+.login-spinner{width:12px;height:12px;border-radius:50%;border:2px solid rgba(247,244,236,.35);
+  border-top-color:var(--on-fill);animation:spin .7s linear infinite;display:none;}
 .login-btn.loading .login-spinner{display:inline-block;}
 .login-btn.loading .login-btn-txt{opacity:.75;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -136,8 +121,8 @@ html,body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',san
 nav{position:sticky;top:0;z-index:200;background:var(--bg);border-bottom:1px solid var(--border);
   display:flex;align-items:center;padding:0 40px;height:60px;}
 .logo{display:flex;align-items:center;gap:10px;margin-right:48px;flex-shrink:0;}
-.lmark{width:30px;height:30px;background:var(--accent);display:flex;align-items:center;justify-content:center;}
-.lmark span{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:var(--bg);}
+.lmark{width:30px;height:30px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;}
+.lmark span{font-family:'IBM Plex Serif',serif;font-size:11px;color:var(--on-fill);}
 .ltxt{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.22em;color:var(--text);}
 .lsub{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-tertiary);letter-spacing:.1em;margin-left:6px;}
 .tabs{display:flex;align-items:stretch;height:60px;overflow-x:auto;}
@@ -148,6 +133,7 @@ nav{position:sticky;top:0;z-index:200;background:var(--bg);border-bottom:1px sol
 .tab.on{color:var(--accent);border-bottom-color:var(--accent);}
 .navr{margin-left:auto;display:flex;align-items:center;gap:16px;
   font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-tertiary);letter-spacing:.1em;flex-shrink:0;}
+.navref{color:var(--text-tertiary);border-right:1px solid var(--border);padding-right:16px;}
 .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blink 2s infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
 .logout-btn{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;
@@ -175,11 +161,11 @@ section.on{display:block;}
 .hero{display:grid;grid-template-columns:1fr 1fr;min-height:380px;border-bottom:1px solid var(--border);}
 .hl{padding:64px;border-right:1px solid var(--border);}
 .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--text-tertiary);margin-bottom:20px;}
-.h1{font-family:'IBM Plex Mono',monospace;font-size:42px;font-weight:300;line-height:1.1;color:var(--text);}
-.h1 em{font-style:normal;color:var(--accent);}
+.h1{font-family:'IBM Plex Serif',serif;font-size:46px;font-weight:300;line-height:1.15;color:var(--text);}
+.h1 em{font-style:italic;color:var(--accent);}
 .hp{font-size:13px;color:var(--text-secondary);line-height:1.8;margin-top:20px;max-width:380px;}
 .hright{display:flex;flex-direction:column;justify-content:flex-end;padding:64px;}
-.bignum{font-family:'IBM Plex Mono',monospace;font-size:88px;font-weight:300;color:var(--text);line-height:1;
+.bignum{font-family:'IBM Plex Serif',serif;font-size:84px;font-weight:300;color:var(--text);line-height:1;
   border-bottom:1px solid var(--border);padding-bottom:18px;margin-bottom:16px;}
 .biglbl{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--text-tertiary);}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border);}
@@ -227,7 +213,7 @@ section.on{display:block;}
 .alhd{padding:48px 64px 36px;border-bottom:1px solid var(--border);
   display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:20px;}
 .aleyebrow{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--text-tertiary);margin-bottom:12px;}
-.altotal{font-family:'IBM Plex Mono',monospace;font-size:50px;font-weight:300;color:var(--text);}
+.altotal{font-family:'IBM Plex Serif',serif;font-size:52px;font-weight:300;color:var(--text);}
 .filters{display:flex;gap:6px;flex-wrap:wrap;}
 .fbtn{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;padding:8px 18px;
   border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;transition:all .18s;}
@@ -277,7 +263,7 @@ section.on{display:block;}
 .pnicad{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:var(--text);}
 .pcnt{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-tertiary);}
 .pdetailwrap{padding:48px 56px;}
-.pdnicad{font-family:'IBM Plex Mono',monospace;font-size:40px;font-weight:300;color:var(--text);margin-bottom:6px;}
+.pdnicad{font-family:'IBM Plex Serif',serif;font-size:42px;font-weight:300;color:var(--text);margin-bottom:6px;}
 .pdzone{font-size:12px;color:var(--text-secondary);margin-bottom:40px;}
 .pdgrid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--border);margin-bottom:40px;}
 .pdcell{padding:22px 24px;border-right:1px solid var(--border);}
@@ -340,7 +326,7 @@ section.on{display:block;}
 /* ── HISTORIQUE ── */
 .hist-header{padding:48px 64px 36px;border-bottom:1px solid var(--border);}
 .hist-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.22em;color:var(--text-tertiary);margin-bottom:12px;}
-.hist-total{font-family:'IBM Plex Mono',monospace;font-size:50px;font-weight:300;color:var(--text);}
+.hist-total{font-family:'IBM Plex Serif',serif;font-size:52px;font-weight:300;color:var(--text);}
 .hist-list{padding:0 64px 80px;}
 .hist-day{padding-top:28px;}
 .hist-day-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;
@@ -353,6 +339,7 @@ section.on{display:block;}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
+  .navref{display:none;}
   nav{padding:0 16px;}
   .logo-sub,.lsub{display:none;}
   .menu-toggle{display:flex;}
@@ -403,12 +390,8 @@ section.on{display:block;}
   .hist-heure{display:none;}
   .al-topbar{padding:12px 20px;flex-direction:column;align-items:flex-start;gap:10px;}
 
-  /* ── LISIBILITE MOBILE ──
-     --ink3 sur --sand a un contraste trop faible pour du texte en
-     8-9px : illisible sur petit ecran. On fonce la couleur et on
-     remonte les tailles les plus critiques uniquement sur mobile,
-     desktop reste inchange. */
-  :root{ --ink3:#6E5F44; }
+  /* Contrastes deja verifies pour la nouvelle palette : plus besoin
+     de surcharge specifique mobile ici. */
 
   .abadge, .bdg, .legtxt, .klbl, .pdkey, .cmp-key,
   .aleyebrow, .eyebrow, .stitle, .hist-day-label, .astatut,
@@ -436,18 +419,10 @@ section.on{display:block;}
 <div id="login-overlay">
 
   <div class="login-brand">
-    <div class="login-grid"></div>
-    <div class="login-glow"></div>
 
     <div class="login-brand-top">
       <div class="login-mark">
-        <svg viewBox="0 0 52 52">
-          <circle class="ring" cx="26" cy="26" r="14"></circle>
-          <circle class="ring ring2" cx="26" cy="26" r="14"></circle>
-          <rect x="8" y="8" width="36" height="36" fill="#7C5CFF"></rect>
-          <text x="26" y="31" text-anchor="middle" font-family="IBM Plex Mono, monospace"
-            font-size="13" font-weight="500" fill="#F4F3F1">SF</text>
-        </svg>
+        <span>SF</span>
       </div>
       <div>
         <div class="login-brand-name">SDFCS</div>
@@ -456,7 +431,7 @@ section.on{display:block;}
     </div>
 
     <div class="login-brand-mid">
-      <div class="login-headline">Detection <em>intelligente</em><br>de la fraude<br>fonciere</div>
+      <div class="login-headline">Registre des<br><em>incoherences</em><br>foncieres</div>
       <div class="login-tagline">Analyse spatiale PostGIS et apprentissage automatique appliques au cadastre de la region de Dakar, Senegal.</div>
       <div class="login-stats">
         <div>
@@ -526,6 +501,7 @@ section.on{display:block;}
     <div class="tab"     id="tab-historique">Historique</div>
   </div>
   <div class="navr">
+    <span class="navref">DOSSIER N&deg; 2026-DK-0417</span>
     <div class="pulse"></div>
     <span id="clk">--:--:--</span>
     <button class="logout-btn" id="btn-logout">DECONNEXION</button>
@@ -570,10 +546,10 @@ section.on{display:block;}
   <div class="ctopbar">
     <div class="ccoord" id="ccoord">LAT 14.71668 LON -17.46769 ZOOM 13</div>
     <div class="leg">
-      <div class="legitem"><div class="legdot" style="background:#FF5C6C"></div><div class="legtxt">CRITIQUE</div></div>
-      <div class="legitem"><div class="legdot" style="background:#FFB238"></div><div class="legtxt">MODERE</div></div>
-      <div class="legitem"><div class="legdot" style="background:#8A8994"></div><div class="legtxt">FAIBLE</div></div>
-      <div class="legitem"><div class="legdot" style="background:#35D07F"></div><div class="legtxt">NORMAL</div></div>
+      <div class="legitem"><div class="legdot" style="background:#9C2B2B"></div><div class="legtxt">CRITIQUE</div></div>
+      <div class="legitem"><div class="legdot" style="background:#96631A"></div><div class="legtxt">MODERE</div></div>
+      <div class="legitem"><div class="legdot" style="background:#8C846E"></div><div class="legtxt">FAIBLE</div></div>
+      <div class="legitem"><div class="legdot" style="background:#2E6B45"></div><div class="legtxt">NORMAL</div></div>
     </div>
     <button class="export-btn" id="btn-export-carte">Exporter carte (image)</button>
   </div>
