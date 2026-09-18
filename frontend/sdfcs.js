@@ -212,7 +212,7 @@ function voirSurCarte(nicad) {
 
 function loadAll(refreshMap) {
 
-  Promise.all([
+  return Promise.all([
 
     request("/stats")
       .then(function(r) {
@@ -1805,6 +1805,31 @@ function showImportStatus(ok, title, lines) {
 }
 
 
+var toastTimer = null;
+
+function showToast(ok, title, message) {
+
+  var el = document.getElementById("toast");
+
+  if (!el) return;
+
+  el.className = "toast show " + (ok ? "ok" : "err");
+
+  el.innerHTML =
+    "<span class='toast-icon'>" + (ok ? "\u2713" : "\u2715") + "</span>"
+    + "<div><div class='toast-title'>" + esc(title) + "</div>"
+    + "<div class='toast-msg'>" + esc(message) + "</div></div>";
+
+  if (toastTimer) {
+    clearTimeout(toastTimer);
+  }
+
+  toastTimer = setTimeout(function() {
+    el.classList.remove("show");
+  }, 6000);
+}
+
+
 // idsAvant : ids d'alertes avant l'action (obligatoire)
 // nicadsAvant : nicads de parcelles avant l'action (optionnel, seulement
 //   pertinent pour un import shapefile qui ajoute de nouvelles geometries)
@@ -1832,32 +1857,43 @@ function apresGenerationAlertes(idsAvant, nicadsAvant, meta) {
         : [];
 
       // On est deja sur l'ecran Carte & Import (c'est la que vivent les
-      // formulaires d'import) : pas besoin de changer d'onglet, on
-      // rafraichit juste la carte en place pour un retour immediat.
-      loadAll(true);
-      buildHistorique();
-      buildCarte(true);
+      // formulaires d'import) : pas besoin de changer d'onglet. On attend
+      // que loadAll ait fini de rafraichir P/A ET reconstruit la carte
+      // (avec les vraies donnees a jour) avant de a) rapporter le resultat
+      // et b) laisser buildCarte re-consommer nouvellesParcellesImportees/
+      // nouvellesAlertesIds. Un appel a buildCarte() fait ICI, avant que
+      // loadAll ait fini, tournerait sur les anciennes donnees (les
+      // nouvelles parcelles n'y seraient pas encore) et viderait quand
+      // meme ces deux listes a la fin de son execution — la carte
+      // n'aurait alors plus jamais l'occasion de zoomer dessus.
+      return loadAll(true).then(function() {
 
-      var lines = [];
+        buildHistorique();
 
-      if (meta && meta.inserees !== undefined) {
-        lines.push(meta.inserees + " entite(s) importee(s)");
-      }
+        var lines = [];
 
-      if (nouvellesParcellesImportees.length > 0) {
-        lines.push(nouvellesParcellesImportees.length + " parcelle(s) visible(s) sur la carte (repere bleu)");
-      }
+        if (meta && meta.inserees !== undefined) {
+          lines.push(meta.inserees + " entite(s) importee(s)");
+        }
 
-      lines.push(nbNouvellesAlertes + " nouvelle(s) alerte(s) detectee(s)");
+        if (nouvellesParcellesImportees.length > 0) {
+          lines.push(nouvellesParcellesImportees.length + " parcelle(s) visible(s) sur la carte (repere bleu)");
+        }
 
-      if (meta && meta.inserees) {
-        var taux = Math.round((nbNouvellesAlertes / meta.inserees) * 100);
-        lines.push("Taux d'anomalie : " + taux + "%");
-      }
+        lines.push(nbNouvellesAlertes + " nouvelle(s) alerte(s) detectee(s)");
 
-      showImportStatus(true, (meta && meta.message) || "Traitement termine", lines);
+        if (meta && meta.inserees) {
+          var taux = Math.round((nbNouvellesAlertes / meta.inserees) * 100);
+          lines.push("Taux d'anomalie : " + taux + "%");
+        }
 
-      return nbNouvellesAlertes;
+        var titre = (meta && meta.message) || "Traitement termine";
+
+        showImportStatus(true, titre, lines);
+        showToast(true, "Import reussi", lines.join(" · "));
+
+        return nbNouvellesAlertes;
+      });
     });
   });
 }
@@ -1966,6 +2002,8 @@ document
             "Echec de l'import shapefile",
             ["Verifie le fichier (.zip avec .shp/.dbf/.prj) et reessaie."]
           );
+
+          showToast(false, "Import echoue", "Verifie le fichier (.zip avec .shp/.dbf/.prj) et reessaie.");
 
         });
 
@@ -2078,6 +2116,8 @@ document
             ["Verifie le fichier et le type selectionne, puis reessaie."]
           );
 
+          showToast(false, "Import echoue", "Verifie le fichier et le type selectionne, puis reessaie.");
+
         });
 
     }
@@ -2150,6 +2190,8 @@ document
             "Echec de la detection",
             ["La detection ML n'a pas pu s'executer. Reessaie dans un instant."]
           );
+
+          showToast(false, "Detection echouee", "Reessaie dans un instant.");
 
         });
 
